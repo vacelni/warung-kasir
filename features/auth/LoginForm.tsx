@@ -4,8 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
 import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { AUTH_MESSAGES, signedOutNotice, validateCredentials, type CredentialErrors } from './account';
 import { hasStoredSession, signIn } from './api';
 
@@ -13,7 +13,6 @@ export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<CredentialErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -81,26 +80,14 @@ export function LoginForm() {
         error={fieldErrors.email}
       />
 
-      <Input
+      <PasswordInput
         label="Password"
         name="password"
-        type={showPassword ? 'text' : 'password'}
         autoComplete="current-password"
         value={password}
         onChange={(event) => setPassword(event.target.value)}
         disabled={pending}
         error={fieldErrors.password}
-        trailing={
-          <button
-            type="button"
-            onClick={() => setShowPassword((shown) => !shown)}
-            aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-            aria-pressed={showPassword}
-            className="flex h-12 w-12 items-center justify-center rounded-r-control text-muted"
-          >
-            <Icon name={showPassword ? 'eyeOff' : 'eye'} size={22} />
-          </button>
-        }
       />
 
       <Button type="submit" disabled={pending} className="w-full">

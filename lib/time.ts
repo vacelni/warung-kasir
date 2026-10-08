@@ -84,3 +84,12 @@ export function formatJakartaDayMonth(instant: Date): string {
   const { month, day } = parseDateKey(jakartaDateKey(instant));
   return `${day} ${MONTH_NAMES[month - 1]}`;
 }
+
+/**
+ * "2026-10-07T10:32:00.000+07:00": an exact instant written in Asia/Jakarta wall-clock time, for
+ * exports. Machine-readable (ISO 8601 with offset) and readable as a WIB time at the same time.
+ */
+export function formatJakartaTimestamp(instant: Date): string {
+  if (Number.isNaN(instant.getTime())) throw new RangeError('Invalid date.');
+  return `${new Date(instant.getTime() + JAKARTA_UTC_OFFSET_MS).toISOString().slice(0, -1)}+07:00`;
+}

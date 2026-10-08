@@ -49,7 +49,16 @@ npm run test          # unit + component tests (no Supabase needed)
 npm run build
 npm run test:db       # pgTAP: schema, constraints, grants, RLS (needs local Supabase)
 npm run test:e2e      # Playwright; auth flows need local Supabase + seed + .env.local
+npm run test:functions  # admin-cashier Edge Function over real HTTP (needs the local stack + Docker)
 ```
+
+### Edge Function (admin-cashier)
+
+`npx supabase start` serves `supabase/functions/` locally at `http://127.0.0.1:54321/functions/v1/` (do not exclude `edge-runtime` with `-x`). The allowed browser origins for local development are set in `supabase/config.toml` (`[edge_runtime.secrets] ALLOWED_ORIGINS`); the function reads the secret key from its own environment, never from `.env.local`.
+
+- On Windows the edge runtime may not notice file changes: after editing a function, run `docker restart supabase_edge_runtime_warung-kasir`.
+- Locally the API gateway answers CORS preflights itself with `*`; the function still rejects a POST from an origin that is not in `ALLOWED_ORIGINS`. In production the function's own CORS headers apply.
+- Production (Phase 13, with approval): `supabase secrets set ALLOWED_ORIGINS=https://<app domain>` before `supabase functions deploy admin-cashier`. Without it, every browser call is refused (fail closed).
 
 CI runs the pgTAP suite with `npx supabase db start` (Postgres only). Locally, if the database was started that way, run `npx supabase stop` before `npx supabase start`, otherwise Auth and the Data API stay down and logins fail with the "connection required" message.
 

@@ -387,8 +387,16 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+# Local values only (not secrets): the app origins the admin-cashier function accepts (CORS,
+# SECURITY E.11). `next dev` (3000) and the Playwright server (3100). Production sets its own
+# value with `supabase secrets set ALLOWED_ORIGINS=…` (Phase 13, with approval).
+[edge_runtime.secrets]
+ALLOWED_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3100,http://127.0.0.1:3100"
+
+# Cashier administration (PRD §25). The platform JWT check is the first gate; the function then
+# verifies in code that the caller is the active owner of the same store (SECURITY E.11).
+[functions.admin-cashier]
+verify_jwt = true
 
 [analytics]
 enabled = true

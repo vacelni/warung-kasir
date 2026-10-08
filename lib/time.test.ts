@@ -4,6 +4,7 @@ import {
   formatJakartaDay,
   formatJakartaDayMonth,
   formatJakartaTime,
+  formatJakartaTimestamp,
   jakartaDateKey,
   jakartaDayStart,
   jakartaDayStartOfKey,
@@ -126,5 +127,29 @@ describe('formatJakartaDayMonth', () => {
   it('names the Jakarta day, not the UTC day', () => {
     expect(formatJakartaDayMonth(new Date('2026-08-09T17:00:00Z'))).toBe('10 Agu');
     expect(formatJakartaDayMonth(new Date('2026-08-09T16:59:59Z'))).toBe('9 Agu');
+  });
+});
+
+describe('formatJakartaTimestamp (exports)', () => {
+  it('writes the instant in WIB with its +07:00 offset', () => {
+    expect(formatJakartaTimestamp(new Date('2026-10-07T03:32:00.000Z'))).toBe('2026-10-07T10:32:00.000+07:00');
+  });
+
+  it('moves to the WIB date across UTC midnight (00:30 WIB is the previous UTC day)', () => {
+    expect(formatJakartaTimestamp(new Date('2026-08-10T17:30:00.000Z'))).toBe('2026-08-11T00:30:00.000+07:00');
+  });
+
+  it('does not depend on the device timezone', () => {
+    process.env.TZ = 'America/New_York';
+    expect(formatJakartaTimestamp(new Date('2026-10-07T03:32:00.000Z'))).toBe('2026-10-07T10:32:00.000+07:00');
+  });
+
+  it('names the same instant it was given', () => {
+    const instant = new Date('2026-10-07T03:32:05.123Z');
+    expect(new Date(formatJakartaTimestamp(instant)).getTime()).toBe(instant.getTime());
+  });
+
+  it('rejects an invalid date', () => {
+    expect(() => formatJakartaTimestamp(new Date('nope'))).toThrow(RangeError);
   });
 });
