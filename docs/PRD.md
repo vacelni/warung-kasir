@@ -127,7 +127,7 @@ Kebutuhan:
 * memasukkan pembayaran;
 * menghitung kembalian;
 * menyelesaikan transaksi;
-* melihat riwayat transaksi sesuai hak akses.
+* melihat riwayat transaksi miliknya sendiri.
 
 ## 6.3 Customer
 
@@ -189,7 +189,11 @@ Akses:
 Akses:
 
 * Kasir
-* Riwayat transaksi
+* Riwayat transaksi — **hanya transaksi miliknya sendiri** (`cashier_id` = akun Cashier tersebut)
+
+Owner dapat melihat seluruh transaksi dalam store.
+
+Hanya ada dua role (`owner`, `cashier`) dan tepat **satu Owner per store** pada MVP. Role bersifat tetap dan tidak dapat diubah melalui aplikasi.
 
 Cashier tidak memiliki akses untuk:
 
@@ -292,6 +296,12 @@ Open Kasir      Login
             Open Kasir
 ```
 
+Catatan:
+
+* Validate Account = profil ada dan `is_active = true`.
+* Login pertama (dan login setelah logout) memerlukan koneksi internet.
+* Perilaku session saat offline mengikuti §28.
+
 ---
 
 # 12. User Flow — Transaction
@@ -323,6 +333,8 @@ Transaction Success
  ↓
 Transaksi Baru
 ```
+
+"Simpan Transaksi" berarti transaksi disimpan terlebih dahulu di perangkat (local outbox), lalu disinkronkan ke server. Alur ini sama untuk kondisi online maupun offline (lihat §28).
 
 ---
 
@@ -367,7 +379,7 @@ Total = Σ seluruh subtotal
 
 MVP tidak menggunakan pajak otomatis.
 
-Diskon dapat disiapkan sebagai field tetapi tidak wajib diaktifkan pada tahap pertama.
+MVP tidak menggunakan diskon dan tidak menyiapkan field diskon. Diskon adalah fitur post-MVP (§45) dan akan ditambahkan melalui migration jika disetujui.
 
 ## 13.4 Pembayaran
 
@@ -419,8 +431,11 @@ Menjadi halaman utama untuk melakukan transaksi.
 ### Header
 
 ```text
-☰   WarungKasir          ⋮
+WarungKasir
+Nama kasir
 ```
+
+Tidak menggunakan hamburger menu pada mobile. Navigasi menggunakan bottom navigation (§10). Detail layout mengikuti UI_SPEC A.9.
 
 ### Search
 
@@ -440,8 +455,12 @@ Setiap produk menampilkan:
 
 * nama;
 * harga;
-* status;
-* tombol tambah.
+* tombol tambah;
+* badge jumlah jika produk sudah ada di cart.
+
+Seluruh card dapat ditekan untuk menambahkan produk ke cart (bukan hanya tombol [+]).
+
+Hanya produk aktif yang tampil di kasir, sehingga card tidak menampilkan status.
 
 Contoh:
 
@@ -505,12 +524,18 @@ Komponen:
 * kembalian;
 * tombol bayar.
 
-Contoh quick amount:
+Quick amount:
 
 ```text
-[10K] [20K] [50K]
-[100K] [200K] [UANG PAS]
+[Rp10.000]  [Rp20.000]  [Rp50.000]
+[Rp100.000] [Rp200.000] [UANG PAS]
 ```
+
+Ketentuan:
+
+* menekan tombol quick amount **mengisi (set)** Uang Dibayar dengan nominal tersebut, bukan menambahkan ke nominal sebelumnya;
+* Rp200.000 hanya nominal pembayaran cepat, bukan pecahan uang kertas;
+* Cashier selalu dapat mengetik nominal lain secara manual.
 
 Input menggunakan numeric keyboard pada Android.
 
@@ -550,6 +575,8 @@ Setelah transaksi berhasil:
 ```text
 ✓ Transaksi Berhasil
 
+TRX-20261007-3F9A2C
+
 Total
 Rp40.000
 
@@ -563,7 +590,7 @@ Rp10.000
 [ Transaksi Baru ]
 ```
 
-Data langsung masuk ke riwayat.
+Transaksi langsung muncul di Riwayat. Jika belum tersinkron ke server, transaksi ditampilkan dengan badge status sinkronisasi (lihat §28).
 
 ---
 
@@ -574,7 +601,7 @@ Menampilkan transaksi dari yang terbaru.
 Setiap item:
 
 ```text
-#TRX-000125
+TRX-20261007-3F9A2C
 07 Okt 2026 • 10:32
 
 3 item
@@ -585,14 +612,18 @@ Kasir: Andi
 
 Fitur:
 
-* pencarian;
+* pencarian berdasarkan kode transaksi;
 * filter tanggal;
 * melihat detail;
 * sorting terbaru/terlama.
 
-Cashier hanya dapat melihat data yang diizinkan.
+Tanggal, waktu, filter tanggal, dan pengelompokan hari menggunakan zona waktu Asia/Jakarta (WIB), bukan zona waktu perangkat.
 
-Owner dapat melihat seluruh transaksi.
+Cashier hanya dapat melihat transaksi miliknya sendiri.
+
+Owner dapat melihat seluruh transaksi dalam store.
+
+Transaksi yang masih tersimpan lokal (belum tersinkron) ditampilkan dengan badge status sinkronisasi.
 
 ---
 
@@ -601,7 +632,7 @@ Owner dapat melihat seluruh transaksi.
 Menampilkan:
 
 ```text
-TRX-000125
+TRX-20261007-3F9A2C
 
 Nasi Goreng ×2       Rp30.000
 Es Teh ×2            Rp10.000
@@ -613,8 +644,10 @@ Kembalian            Rp10.000
 
 Kasir                Andi
 Tanggal              07/10/2026
-Waktu                10:32
+Waktu                10:32 WIB
 ```
+
+Tanggal dan waktu adalah waktu penjualan (`created_at`) dalam Asia/Jakarta.
 
 ---
 
@@ -639,6 +672,14 @@ Item Terjual
 Rata-rata Transaksi
 Rp39.063
 ```
+
+Ketentuan:
+
+* tepat 4 metrik: Omzet, Transaksi, Item Terjual, Rata-rata Transaksi;
+* pada mobile ditampilkan sebagai grid 2×2 yang ringkas;
+* Rata-rata Transaksi = `Math.round(omzet / jumlahTransaksi)`; jika jumlah transaksi 0, tampilkan Rp0;
+* seluruh perhitungan menggunakan waktu penjualan (`created_at`) dengan batas hari Asia/Jakarta;
+* transaksi berstatus `cancelled` tidak dihitung.
 
 ## Time Filter
 
@@ -669,7 +710,7 @@ Owner dapat:
 * melihat menu;
 * menambah menu;
 * mengubah menu;
-* menghapus menu;
+* menghapus menu (= menonaktifkan, lihat §23);
 * mengubah harga;
 * mengaktifkan/nonaktifkan menu.
 
@@ -680,13 +721,12 @@ id
 name
 category_id
 price
-image
 is_active
 created_at
 updated_at
 ```
 
-Image bersifat optional.
+Gambar produk ditunda (post-MVP, lihat §45). Definisi kolom otoritatif: `docs/DATABASE.md`.
 
 ---
 
@@ -705,15 +745,13 @@ Jika tidak aktif:
 * tetap tersimpan di database;
 * histori transaksi lama tetap menggunakan data transaksi lama.
 
-Produk sebaiknya **tidak benar-benar dihapus** apabila pernah digunakan dalam transaksi.
-
-Pendekatan yang dipakai:
+Pada MVP **tidak ada hard delete produk**. Aksi menghapus menu berarti:
 
 ```text
 is_active = false
 ```
 
-bukan hard delete.
+Produk yang pernah digunakan dalam transaksi tetap tersimpan di database. Foreign key dari `transaction_items` ke `products` menjadi pengaman tambahan.
 
 ---
 
@@ -724,6 +762,8 @@ Owner dapat:
 * membuat kategori;
 * mengubah nama kategori;
 * menghapus kategori yang belum digunakan.
+
+"Belum digunakan" berarti tidak ada produk (aktif maupun tidak aktif) yang memakai kategori tersebut. Database menolak penghapusan kategori yang masih dipakai produk.
 
 Contoh:
 
@@ -745,9 +785,19 @@ Fitur:
 
 * tambah Cashier;
 * melihat daftar Cashier;
-* mengubah status;
+* mengubah status (aktif/nonaktif);
 * menonaktifkan akun;
-* mengubah profil.
+* mengubah profil (nama);
+* reset password Cashier.
+
+Ketentuan:
+
+* tambah Cashier, aktif/nonaktif, dan reset password dilakukan melalui Supabase Edge Function yang aman (server-side);
+* Owner menentukan email login dan password Cashier; Cashier tidak wajib memiliki mailbox email pribadi yang aktif;
+* MVP tidak menggunakan pemulihan password berbasis email untuk Cashier;
+* pemulihan akun Owner menggunakan proses Supabase Dashboard yang terdokumentasi di runbook;
+* Owner tidak dapat menonaktifkan akunnya sendiri;
+* role tidak dapat diubah melalui aplikasi.
 
 Contoh:
 
@@ -772,8 +822,9 @@ Owner dapat mengatur:
 * nama warung;
 * alamat;
 * nomor telepon;
-* logo;
 * catatan struk.
+
+Logo warung ditunda (post-MVP, lihat §45).
 
 Contoh:
 
@@ -804,9 +855,26 @@ Format minimum:
 CSV
 ```
 
+Pada MVP, "Backup Data" berarti **export data**, bukan backup lengkap yang dapat di-restore.
+
+Data yang di-export:
+
+* data store;
+* categories;
+* products;
+* transactions;
+* transaction_items;
+* profil karyawan (opsional) — hanya jika tidak memuat credential atau secret apa pun.
+
+Ketentuan:
+
+* tidak ada fitur restore pada MVP;
+* export CSV tidak boleh diklaim sebagai backup disaster-recovery yang lengkap;
+* CSV harus aman dari formula injection saat dibuka di spreadsheet.
+
 Tujuan:
 
-* pencadangan;
+* pencadangan data;
 * analisis manual;
 * mengurangi risiko kehilangan data.
 
@@ -828,9 +896,13 @@ Aplikasi dirancang agar fungsi transaksi dasar dapat berjalan saat koneksi inter
 * membuat transaksi;
 * menyimpan transaksi lokal.
 
+## Local-first
+
+Checkout selalu menyimpan transaksi ke local outbox (IndexedDB) terlebih dahulu, kemudian menyinkronkannya ke server. Online dan offline menggunakan alur yang sama; tidak ada jalur penyimpanan terpisah.
+
 ## Sync
 
-Ketika koneksi tersedia kembali:
+Ketika koneksi tersedia:
 
 ```text
 Local Transaction
@@ -842,13 +914,25 @@ Sync Queue
 Cloud Database
 ```
 
-Transaksi memiliki status sinkronisasi:
+Status sinkronisasi (hanya di perangkat/IndexedDB, **bukan** status transaksi di server):
 
 ```text
 pending
+syncing
 synced
 failed
 ```
+
+Status transaksi di server didefinisikan di §40.
+
+Transaksi pending tidak pernah dihapus secara otomatis. Sinkronisasi yang gagal tidak boleh menghapus transaksi.
+
+## Session saat Offline
+
+* Jika perangkat offline dan token tidak dapat diperbarui karena jaringan tidak tersedia, user **tidak** langsung diarahkan ke login. User tetap berada di aplikasi dengan identitas yang tersimpan dan tetap dapat membuat transaksi offline.
+* Sinkronisasi menunggu sampai session valid berhasil diperbarui.
+* Jika server secara eksplisit menolak session, atau user logout secara eksplisit, user diarahkan ke login. Transaksi pending tetap tersimpan di perangkat.
+* Saat logout dan masih ada transaksi pending, aplikasi menampilkan peringatan yang memblokir (modal) dengan jumlah transaksi yang belum tersinkron. Detail dialog: UI_SPEC A.24.
 
 ---
 
@@ -856,15 +940,22 @@ failed
 
 MVP menggunakan pendekatan sederhana:
 
-Setiap transaksi diberikan ID unik dari sisi client sebelum sinkronisasi.
+Setiap transaksi diberikan UUID dari sisi client sebelum disimpan. UUID ini adalah identitas transaksi yang sebenarnya (primary key).
 
-Contoh:
+Selain itu, transaksi memiliki kode tampilan untuk referensi dan pencarian manusia:
 
 ```text
-TRX-20261007-AB12
+TRX-YYYYMMDD-XXXXXX
+
+Contoh:
+TRX-20261007-3F9A2C
 ```
 
-Jika transaksi berhasil masuk database, transaksi tidak boleh dibuat ulang.
+* `YYYYMMDD` = tanggal penjualan dalam Asia/Jakarta;
+* `XXXXXX` = 6 karakter heksadesimal pertama UUID transaksi, huruf besar;
+* kode tampilan tidak wajib unik secara global; UUID tetap identitas yang sebenarnya.
+
+Jika transaksi dengan UUID yang sama sudah masuk database, transaksi tidak boleh dibuat ulang.
 
 Tujuan:
 
@@ -886,7 +977,7 @@ profiles
           ├── owner
           └── cashier
 
-store
+stores
   │
   ├── categories
   │       │
@@ -897,79 +988,11 @@ store
            └── transaction_items
 ```
 
-## profiles
+Tabel MVP: `stores`, `profiles`, `categories`, `products`, `transactions`, `transaction_items`.
 
-```text
-id
-name
-role
-store_id
-created_at
-updated_at
-```
+**Definisi kolom, constraint, dan index yang otoritatif ada di `docs/DATABASE.md`.** Bagian ini hanya gambaran konseptual.
 
-## store
-
-```text
-id
-name
-address
-phone
-logo_url
-created_at
-updated_at
-```
-
-## categories
-
-```text
-id
-store_id
-name
-created_at
-updated_at
-```
-
-## products
-
-```text
-id
-store_id
-category_id
-name
-price
-image_url
-is_active
-created_at
-updated_at
-```
-
-## transactions
-
-```text
-id
-store_id
-cashier_id
-total
-paid_amount
-change_amount
-status
-created_at
-```
-
-## transaction_items
-
-```text
-id
-transaction_id
-product_id
-product_name
-price
-quantity
-subtotal
-```
-
-`product_name` dan `price` disimpan pada `transaction_items` sebagai snapshot transaksi agar perubahan harga produk di masa depan tidak mengubah histori transaksi lama.
+`product_name` dan `unit_price` disimpan pada `transaction_items` sebagai snapshot transaksi agar perubahan harga produk di masa depan tidak mengubah histori transaksi lama.
 
 ---
 
@@ -995,9 +1018,12 @@ Owner
 
 Cashier
 → transaction-related access
+→ riwayat hanya transaksi miliknya sendiri
 ```
 
 User tidak boleh membaca data store lain.
+
+Detail kebijakan keamanan: `docs/SECURITY.md`.
 
 ---
 
@@ -1151,15 +1177,16 @@ Contoh transaksi:
 
 ```text
 Transaction
-TRX-000125
+id: 3f9a2c4e-…  (UUID, identitas sebenarnya)
+code: TRX-20261007-3F9A2C
 
 Nasi Goreng
-price: 15000
+unit_price: 15000
 quantity: 2
 subtotal: 30000
 
 Es Teh
-price: 5000
+unit_price: 5000
 quantity: 2
 subtotal: 10000
 
@@ -1224,7 +1251,7 @@ Sistem harus memastikan:
 * total tidak dapat diedit manual;
 * subtotal dihitung sistem;
 * kembalian dihitung sistem;
-* transaksi yang sudah selesai tidak dapat diubah sembarangan;
+* transaksi yang sudah selesai tidak dapat diubah atau dibatalkan melalui aplikasi pada MVP;
 * histori menyimpan harga saat transaksi;
 * transaksi memiliki ID unik;
 * data yang gagal sync tidak hilang.
@@ -1233,14 +1260,18 @@ Sistem harus memastikan:
 
 # 40. Transaction Status
 
-Transaksi dapat memiliki status:
+Status bisnis transaksi di server:
 
 ```text
-pending_sync
-synced
-failed
+completed
 cancelled
 ```
+
+* semua transaksi yang disimpan pada MVP berstatus `completed`;
+* `cancelled` dicadangkan untuk fitur pembatalan terkontrol di masa depan; **tidak ada UI pembatalan pada MVP**;
+* laporan tidak menghitung transaksi `cancelled` jika suatu saat ada.
+
+Status sinkronisasi (`pending`, `syncing`, `synced`, `failed`) adalah konsep terpisah yang hanya ada di perangkat (lihat §28) dan tidak boleh disimpan sebagai status transaksi di server.
 
 MVP tidak perlu fitur refund kompleks.
 
@@ -1305,11 +1336,10 @@ Fitur penting tetapi dapat menyusul setelah core POS berjalan:
 
 ```text
 - Quick payment buttons
-- Search history
+- Pencarian riwayat (berdasarkan kode transaksi)
 - Date filtering
-- Product image
 - Simple receipt view
-- Sync status indicator
+- Sync status indicator ringkas di header (status di Lainnya dan peringatan logout tetap wajib, lihat §28)
 - Dark mode
 - Custom dashboard date range
 ```
@@ -1336,6 +1366,11 @@ Tidak menjadi bagian MVP:
 - Mobile native Android application
 - AI recommendation
 - WhatsApp integration
+- Product image
+- Logo warung
+- Diskon
+- Pembatalan transaksi (UI)
+- Restore data
 ```
 
 ---
@@ -1495,50 +1530,9 @@ MVP dianggap berhasil apabila:
 
 # 52. Prioritas Development
 
-Urutan pengembangan:
+Urutan pengembangan yang berlaku didefinisikan di **`docs/IMPLEMENTATION_PLAN.md`** (Phase 1–14).
 
-```text
-Phase 1
-Project setup
-        ↓
-Phase 2
-Authentication + Authorization
-        ↓
-Phase 3
-Database
-        ↓
-Phase 4
-Menu + Category
-        ↓
-Phase 5
-Kasir + Cart
-        ↓
-Phase 6
-Payment + Change
-        ↓
-Phase 7
-Transaction History
-        ↓
-Phase 8
-Owner Dashboard
-        ↓
-Phase 9
-Employee Management
-        ↓
-Phase 10
-Backup / Export
-        ↓
-Phase 11
-PWA
-        ↓
-Phase 12
-Offline + Sync
-        ↓
-Phase 13
-Testing + Security Review
-        ↓
-MVP Release
-```
+Catatan: checkout menggunakan local outbox sebagai satu-satunya jalur penyimpanan sejak Phase 6; phase Offline + Sync memperkuat (hardening) sistem offline, bukan memperkenalkannya pertama kali.
 
 ---
 

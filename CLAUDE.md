@@ -34,6 +34,8 @@ Always follow these documents:
 @docs/SECURITY.md
 @docs/TEST_PLAN.md
 
+Phase order, phase gates, and the decision log are in `docs/IMPLEMENTATION_PLAN.md` (read it when starting or reviewing a phase).
+
 If implementation conflicts with documentation, identify the conflict before proceeding.
 
 Do not silently invent a third behavior.
@@ -93,6 +95,7 @@ Use static export where specified by the technical specification.
 * Do not duplicate business logic.
 * Do not create giant components.
 * Preserve existing architecture unless there is a documented reason to change it.
+* Code organization: TECHNICAL_SPEC C.14. Dependency policy (including packages not to add): TECHNICAL_SPEC C.15.
 
 ---
 
@@ -122,13 +125,17 @@ total = sum(subtotals)
 
 change = paid_amount - total
 
+average transaction = Math.round(revenue / transactionCount), Rp0 when there are no transactions
+
 All money calculations must have automated tests.
 
 ---
 
 ## Transaction Rules
 
-Every transaction must have a unique UUID.
+Every transaction must have a unique client-generated UUID. The UUID is the real identity.
+
+The human-readable code `TRX-YYYYMMDD-XXXXXX` (Asia/Jakarta sale date + first 6 hex chars of the UUID, uppercase) is for display/search only and is not required to be unique.
 
 Transaction items must preserve:
 
@@ -139,6 +146,12 @@ Transaction items must preserve:
 * subtotal
 
 Historical transactions must not change when current product prices change.
+
+Server transaction status is `completed` or `cancelled` (`cancelled` is reserved; no cancel UI in MVP). Sync status (`pending`, `syncing`, `synced`, `failed`) exists only in IndexedDB and is never stored as the server status.
+
+`created_at` is the client sale time and is preserved on sync; `synced_at` is set by the server. Reports use `created_at`.
+
+The only transaction write path is one atomic Postgres RPC (`create_transaction`). Never insert a transaction header and its items through separate requests. Never move transaction integrity into an Edge Function.
 
 ---
 
@@ -179,7 +192,9 @@ Owner:
 Cashier:
 
 * cashier
-* transaction history according to specification
+* transaction history of their own transactions only
+
+Exactly one Owner per store. Roles are fixed and cannot be changed through the client. Cashier accounts are created, activated/deactivated, and password-reset only by the Owner through a secure Edge Function (the Owner may edit a cashier's name directly, protected by RLS). The Owner cannot deactivate themselves.
 
 Cashier cannot perform owner-only actions.
 
@@ -205,11 +220,11 @@ Never bypass RLS as a frontend security mechanism.
 
 ## Product Deletion
 
-Products that have historical transactions must not be hard-deleted.
-
-Use:
+There is no hard delete for products in the MVP. "Hapus" means deactivate:
 
 is_active = false
+
+Products used in historical transactions remain in the database; foreign keys are the backstop.
 
 ---
 
@@ -228,6 +243,18 @@ Failed synchronization must never silently delete a transaction.
 Sync must be idempotent.
 
 The same transaction UUID must never create duplicate transactions.
+
+Checkout is local-first: every sale (online or offline) is written to the IndexedDB outbox first, then synced. There is one write path.
+
+If token refresh fails only because the device is offline, keep the user in the app with the cached identity and keep selling; sync waits for a valid session. Redirect to login only when the server rejects the session or the user logs out. Logging out with pending transactions shows a blocking warning with the pending count. Never delete pending transactions automatically.
+
+Details: TECHNICAL_SPEC C.12.
+
+---
+
+## Timezone
+
+Business timezone is `Asia/Jakarta`, used for reports, date filters, transaction codes, history grouping, and sales date boundaries. Never rely on the device timezone for business dates.
 
 ---
 
@@ -280,6 +307,10 @@ Never commit:
 
 Do not create commits unless explicitly requested.
 
+The default branch is `main`.
+
+`git push`, `supabase db push`, `supabase functions deploy`, `supabase db reset --linked`, `supabase secrets set`, `wrangler deploy`, and `wrangler pages deploy` require explicit approval (enforced as `ask` rules in `.claude/settings.json`).
+
 ---
 
 ## Development Workflow
@@ -317,6 +348,10 @@ MVP does not include:
 * WhatsApp integration
 * AI features
 * native Android application
+* discounts
+* product images or store logo
+* transaction cancellation UI
+* data restore
 
 Do not implement future features without explicit instruction.
 

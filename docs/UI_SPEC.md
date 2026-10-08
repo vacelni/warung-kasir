@@ -160,6 +160,26 @@ Kasir
 Riwayat
 Laporan
 Lainnya
+
+Isi halaman Lainnya:
+
+Owner:
+
+Menu
+Kategori
+Karyawan
+Backup / Export
+Pengaturan
+Status sinkronisasi
+Tentang
+Keluar
+
+Cashier:
+
+Nama/profil (hanya tampilan)
+Status sinkronisasi + jumlah transaksi pending
+Tentang
+Keluar
 A.8 Page: Login
 
 Layout:
@@ -192,6 +212,10 @@ validation inline;
 loading state;
 error state;
 disabled button saat request berlangsung.
+
+Login memerlukan koneksi internet. Jika offline, tampilkan:
+
+Koneksi internet diperlukan untuk masuk.
 A.9 Page: Cashier
 
 Header:
@@ -220,7 +244,11 @@ Pada mobile:
 2 kolom;
 card compact;
 harga selalu terlihat;
-tombol tambah mudah ditekan.
+seluruh card dapat ditekan untuk menambah produk ke cart;
+badge jumlah tampil pada card jika produk sudah ada di cart;
+tidak ada hamburger menu; navigasi melalui bottom navigation.
+
+Hanya produk aktif yang tampil, sehingga card tidak menampilkan status.
 
 Bottom cart:
 
@@ -286,8 +314,8 @@ UANG DITERIMA
 │ Rp50.000                     │
 └──────────────────────────────┘
 
-[10K] [20K] [50K]
-[100K] [200K] [UANG PAS]
+[Rp10.000]  [Rp20.000]  [Rp50.000]
+[Rp100.000] [Rp200.000] [UANG PAS]
 
 KEMBALIAN
 
@@ -296,6 +324,15 @@ Rp10.000
 [ BAYAR ]
 
 Input pembayaran menggunakan numeric keyboard.
+
+Quick amount:
+
+menekan tombol mengisi (set) Uang Diterima dengan nominal tersebut, bukan menambahkan;
+UANG PAS mengisi Uang Diterima = Total;
+Rp200.000 hanya nominal pembayaran cepat, bukan pecahan uang kertas;
+Cashier tetap dapat mengetik nominal lain secara manual.
+
+UUID transaksi dibuat sekali saat halaman pembayaran dibuka dan tidak berubah selama retry. Tombol BAYAR disabled setelah ditekan pertama kali.
 
 A.13 Payment Error
 
@@ -323,7 +360,7 @@ A.14 Transaction Success
 
 Transaksi Berhasil
 
-TRX-20261007-000125
+TRX-20261007-3F9A2C
 
 Total
 Rp40.000
@@ -334,8 +371,13 @@ Rp50.000
 Kembalian
 Rp10.000
 
+Tersimpan • Menunggu sinkronisasi
+(atau: Tersinkron)
+
 [ LIHAT DETAIL ]
 [ TRANSAKSI BARU ]
+
+Layar sukses tampil setelah transaksi tersimpan di perangkat (local outbox). Baris status menunjukkan status sinkronisasi saat ini.
 
 Transaksi baru harus membersihkan cart.
 
@@ -343,19 +385,27 @@ A.15 History
 
 Filter:
 
-🔍 Cari transaksi
+🔍 Cari kode transaksi
 
 [ Hari Ini ▼ ]
 
 List:
 
-#TRX-000125
+TRX-20261007-3F9A2C
 10:32
 3 item
 Rp40.000
 Kasir: Andi
 
 Klik item membuka detail.
+
+Ketentuan:
+
+Cashier hanya melihat transaksi miliknya sendiri; Owner melihat seluruh transaksi store;
+pencarian berdasarkan kode transaksi;
+filter tanggal dan pengelompokan hari menggunakan Asia/Jakarta (WIB);
+transaksi lokal yang belum tersinkron tampil dengan badge "Belum tersinkron" (atau "Gagal sinkron");
+detail dibuka melalui /riwayat/detail?id=<uuid>.
 
 A.16 Dashboard
 
@@ -367,14 +417,17 @@ Penjualan
 
 Hari Ini ▼
 
-Rp1.250.000
-Omzet
+Grid 2×2 (mobile):
 
-32
-Transaksi
+┌──────────────┬──────────────┐
+│ Rp1.250.000  │ 32           │
+│ Omzet        │ Transaksi    │
+├──────────────┼──────────────┤
+│ 117          │ Rp39.063     │
+│ Item Terjual │ Rata-rata    │
+└──────────────┴──────────────┘
 
-117
-Item Terjual
+Tepat 4 metrik. Rata-rata = Math.round(omzet / transaksi); Rp0 jika tidak ada transaksi. Perhitungan berdasarkan waktu penjualan dengan batas hari Asia/Jakarta; transaksi cancelled tidak dihitung.
 
 Kemudian:
 
@@ -412,12 +465,14 @@ Aktif                  ⋮
 Action menu:
 
 Edit
-Nonaktifkan
-Hapus
+Nonaktifkan (untuk produk aktif)
+Aktifkan (untuk produk tidak aktif)
 
-Produk yang pernah dipakai dalam transaksi tidak boleh di-hard-delete.
+Tidak ada aksi Hapus terpisah. "Menghapus menu" pada PRD diimplementasikan sebagai Nonaktifkan (is_active=false).
 
-Gunakan is_active=false.
+Tidak ada hard delete produk pada MVP.
+
+Gambar produk ditunda (post-MVP).
 
 A.18 Employee Management
 
@@ -435,14 +490,23 @@ Aktif                  ⋮
 
 Action:
 
-Edit Profile
+Edit Profil (nama)
+Reset Password
 Nonaktifkan
 Aktifkan
 
-Role tidak dapat diubah menjadi role selain:
+Form tambah Cashier:
 
-owner
-cashier
+Nama
+Email login
+Password
+
+Ketentuan:
+
+[+] hanya membuat akun Cashier;
+role tetap dan tidak dapat diubah melalui aplikasi;
+Owner tidak dapat menonaktifkan akunnya sendiri (aksi tidak ditampilkan untuk Owner);
+tambah, aktif/nonaktif, dan reset password diproses oleh Edge Function server-side.
 A.19 Settings
 Profil Warung
 Transaksi
@@ -455,6 +519,8 @@ Tentang
 Jangan membuat settings sebagai halaman yang penuh form.
 
 Gunakan grouped sections.
+
+Grup yang tidak memiliki pengaturan pada MVP tidak ditampilkan (tidak ada section kosong).
 
 A.20 Loading State
 
@@ -502,9 +568,37 @@ Desktop layout:
 │ Riwayat      │                          │
 │ Laporan      │                          │
 │ Menu         │                          │
+│ Kategori     │                          │
 │ Karyawan     │                          │
-│ Settings     │                          │
+│ Backup       │                          │
+│ Pengaturan   │                          │
+│ Tentang      │                          │
 │              │                          │
 └──────────────┴──────────────────────────┘
 
+Sidebar menampilkan seluruh route yang diizinkan untuk role user. Untuk Cashier: Kasir, Riwayat, dan item Lainnya untuk Cashier (A.7).
+
 Mobile menggunakan bottom navigation.
+
+A.24 Sync Status & Logout
+
+Indikator status sinkronisasi:
+
+tampil di Lainnya (wajib MVP);
+indikator ringkas di header jika ada transaksi pending/failed (Should Have, PRD §44);
+menampilkan jumlah transaksi pending dan failed;
+tombol [ COBA LAGI ] untuk transaksi failed.
+
+Logout saat masih ada transaksi pending/failed menampilkan modal yang memblokir:
+
+Masih ada 3 transaksi belum tersinkron.
+
+Transaksi tetap tersimpan di perangkat ini
+dan akan disinkronkan saat akun yang sama
+masuk kembali di perangkat ini.
+
+[ SINKRONKAN SEKARANG ]   (hanya saat online)
+[ BATAL ]                 (default)
+Tetap keluar              (aksi sekunder)
+
+Transaksi pending tidak pernah dihapus secara otomatis, termasuk saat logout.

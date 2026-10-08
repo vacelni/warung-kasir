@@ -55,11 +55,24 @@ Server Actions;
 Route Handlers sebagai backend utama;
 server-only database credentials;
 middleware yang diperlukan untuk business logic;
-service_role key di browser.
+service_role / secret key di browser;
+dynamic route segment untuk ID yang dibuat saat runtime (mis. app/riwayat/[id]).
+
+Detail transaksi menggunakan query parameter:
+
+/riwayat/detail?id=<uuid>
+
+(useSearchParams di dalam Suspense boundary).
+
+Gunakan images.unoptimized (atau elemen img biasa) karena image optimization Next.js tidak tersedia pada static export.
+
+Lint dijalankan melalui ESLint CLI (npm run lint), karena next build tidak menjalankan lint.
 
 Authentication dilakukan menggunakan Supabase browser client.
 
-Privileged operations menggunakan Supabase Edge Functions.
+Auth guard berjalan di client (layout aplikasi). Halaman statis tidak memuat data privat; seluruh data privat dilindungi RLS.
+
+Privileged operations menggunakan Supabase Edge Functions (lihat C.5). Integritas transaksi menggunakan Postgres RPC (lihat C.11).
 
 C.4 Supabase
 
@@ -69,23 +82,25 @@ Supabase Auth
 Supabase PostgreSQL
 Supabase Edge Functions
 
-Database accessed from frontend hanya menggunakan publishable key.
+Client frontend: @supabase/supabase-js saja (session disimpan oleh Supabase Auth di browser). Tidak menggunakan @supabase/ssr.
 
-Supabase menjelaskan bahwa frontend dapat menggunakan publishable key ketika RLS dikonfigurasi dengan benar; service/secret key tidak boleh dikirim ke browser karena bypass RLS.
+Database accessed from frontend hanya menggunakan publishable key (sb_publishable_…).
+
+Supabase menjelaskan bahwa frontend dapat menggunakan publishable key ketika RLS dikonfigurasi dengan benar; service/secret key (sb_secret_… / service_role) tidak boleh dikirim ke browser karena bypass RLS.
+
+Public sign-up harus dinonaktifkan (Auth settings dan supabase/config.toml). Akun hanya dibuat oleh Owner melalui Edge Function, atau saat bootstrap Owner melalui runbook.
 
 C.5 Privileged Backend Operation
 
-Untuk:
+Edge Function hanya digunakan untuk operasi yang membutuhkan privileged Auth API:
 
 Create cashier account
-Disable account
-Owner-only administrative action
-
-gunakan Edge Function jika membutuhkan privileged Auth API.
+Activate / deactivate cashier account (termasuk ban/unban Auth user)
+Reset cashier password
 
 Contoh:
 
-create-cashier
+admin-cashier
 
 Flow:
 
@@ -97,24 +112,34 @@ Edge Function
  ↓
 Verify JWT/session
  ↓
-Verify owner role
+Verify caller is active owner of the same store (query profiles)
  ↓
 Use server-side secret
  ↓
-Create auth user
+Create/update auth user
  ↓
-Create profile
+Create/update profile
+ ↓
+If profile step fails: compensate (delete the just-created auth user)
+
+Platform verify_jwt hanya membuktikan session valid; pengecekan role Owner wajib dilakukan di dalam kode function.
+
+Owner tidak dapat menonaktifkan akunnya sendiri. Function tidak pernah membuat role selain cashier.
+
+CORS Edge Function dibatasi ke origin aplikasi.
+
+Edge Function TIDAK digunakan untuk integritas transaksi, laporan, atau CRUD produk/kategori.
 
 Secret tidak pernah masuk frontend.
 
 C.6 State Management
 
-Jangan menggunakan Redux kecuali benar-benar dibutuhkan.
+Tidak menggunakan library state management global (lihat C.15).
 
 Untuk MVP gunakan:
 
 React state;
-Context jika diperlukan;
+Context jika diperlukan (Auth, Cart);
 custom hooks;
 IndexedDB.
 
@@ -145,17 +170,21 @@ Rp15.000
 Rp40.000
 Rp50.000
 
+Format tanpa spasi antara "Rp" dan angka (jangan gunakan Intl currency style yang menyisipkan spasi).
+
 Jangan menyimpan:
 
 "Rp15.000"
 
 sebagai nilai database.
 
+Satu-satunya pembagian adalah Rata-rata Transaksi: Math.round(omzet / jumlahTransaksi); hasil Rp0 jika jumlah transaksi 0.
+
 C.8 Transaction ID
 
-Client membuat UUID sebelum transaksi disimpan.
+Client membuat UUID (crypto.randomUUID) sebelum transaksi disimpan.
 
-UUID menjadi id transaksi.
+UUID menjadi id transaksi (primary key) dan identitas yang sebenarnya.
 
 Tujuan:
 
@@ -163,6 +192,23 @@ offline support;
 retry;
 idempotency;
 duplicate prevention.
+
+Kode tampilan (untuk referensi/pencarian manusia):
+
+TRX-YYYYMMDD-XXXXXX
+
+YYYYMMDD = tanggal penjualan (created_at) dalam Asia/Jakarta;
+XXXXXX = 6 karakter heksadesimal pertama UUID, huruf besar.
+
+Contoh:
+
+id   = 3f9a2c4e-…
+code = TRX-20261007-3F9A2C
+
+Kode tampilan dibuat di client, disimpan di kolom code, dan TIDAK wajib unik. UUID tetap identitas yang sebenarnya.
+
+UUID dibuat sekali per checkout (saat halaman pembayaran dibuka) dan tidak berubah selama retry.
+
 C.9 No Server Request Per Cart Action
 
 Cart:
@@ -176,28 +222,164 @@ harus berjalan lokal.
 
 Request database baru terjadi saat:
 
-Checkout
+sinkronisasi transaksi (lihat C.11, C.12)
 
 atau ketika perlu refresh master data.
 
+Checkout selalu menyimpan transaksi ke local outbox (IndexedDB) terlebih dahulu, lalu sinkronisasi mengirimnya ke server. Online dan offline menggunakan alur yang sama; tidak ada jalur penyimpanan kedua.
+
 C.10 Caching
 
-Cache:
+Service worker hanya meng-cache:
 
-static assets;
-application shell;
-menu;
-kategori;
-store information.
+static assets (/_next/static/*, icons, manifest);
+application shell (seluruh HTML route hasil export).
+
+Service worker TIDAK PERNAH meng-cache request ke Supabase (*.supabase.co).
+
+Snapshot master data untuk offline (menu, kategori, store information) disimpan secara eksplisit oleh aplikasi di IndexedDB (catalog), bukan melalui HTTP cache service worker. Catalog dihapus saat logout.
+
+Outbox transaksi tidak pernah dihapus otomatis (termasuk saat logout).
 
 Jangan cache sembarangan:
 
-authenticated API response;
+authenticated API response melalui service worker;
 password;
 session token sebagai custom cache;
 sensitive data.
 
 Session tetap dikelola Supabase Auth.
+
+C.11 Transaction Write Path
+
+Satu-satunya jalur penulisan transaksi adalah satu Postgres RPC atomik:
+
+create_transaction(payload)
+
+Client TIDAK BOLEH meng-insert header transaksi dan transaction_items melalui request terpisah.
+
+Akses INSERT/UPDATE/DELETE langsung ke transactions dan transaction_items dicabut untuk role client.
+
+Integritas transaksi tidak dipindahkan ke Edge Function.
+
+Kontrak RPC (validasi, idempotency, hasil created/exists) didefinisikan di DATABASE D.9.
+
+C.12 Offline & Sync
+
+Status sinkronisasi (hanya di IndexedDB, bukan status transaksi server):
+
+pending
+syncing
+synced
+failed
+
+Record outbox menyimpan:
+
+id (uuid), code, store_id, cashier_id, created_at (waktu penjualan), items (product_id, product_name, unit_price, quantity, subtotal), total, paid_amount, change_amount, sync_status, attempts, last_error, last_attempt_at.
+
+Sinkronisasi dipicu saat:
+
+aplikasi dibuka;
+session tersedia/berhasil diperbarui;
+event online;
+tab kembali visible;
+setelah checkout;
+user menekan Coba Lagi.
+
+Tidak ada polling agresif. Retry menggunakan exponential backoff (maksimum ±5 menit) selama aplikasi terbuka. Jangan hanya mengandalkan navigator.onLine.
+
+Idempotency:
+
+RPC menggunakan ON CONFLICT (id) DO NOTHING dan mengembalikan created atau exists. Keduanya berarti tersinkron (synced). Retry setelah response hilang aman.
+
+Klasifikasi error:
+
+sementara (network, timeout, 5xx, session belum dapat diperbarui) → tetap pending, retry dengan backoff;
+permanen (validasi RPC ditolak, akun tidak aktif) → failed, tetap disimpan, tampil di UI dengan aksi Coba Lagi.
+
+Transaksi pending/syncing/failed tidak pernah dihapus otomatis. Entri synced boleh dipangkas setelah konfirmasi server; periode retensi ditetapkan pada Phase 10.
+
+Session saat offline:
+
+jika token tidak dapat diperbarui karena jaringan tidak tersedia, user tetap di aplikasi dengan identitas tersimpan dan tetap dapat membuat transaksi;
+sinkronisasi menunggu sampai session valid berhasil diperbarui;
+jika server menolak session secara eksplisit, atau user logout, arahkan ke login; outbox tetap tersimpan.
+
+Kepemilikan outbox:
+
+setiap entri menyimpan cashier_id;
+sinkronisasi hanya mengirim entri milik user yang sedang login;
+logout dengan entri pending/failed menampilkan dialog blokir (UI_SPEC A.24).
+
+Lain-lain:
+
+Web Locks API (navigator.locks) mencegah sinkronisasi paralel antar tab;
+minta navigator.storage.persist() untuk mengurangi risiko eviction;
+service worker baru aktif pada peluncuran berikutnya, tidak di tengah transaksi.
+
+C.13 Timezone
+
+Zona waktu bisnis: Asia/Jakarta (konstanta).
+
+Digunakan secara konsisten untuk:
+
+laporan hari ini;
+filter tanggal;
+kode tampilan transaksi;
+pengelompokan riwayat per hari;
+batas hari penjualan.
+
+Jangan bergantung pada zona waktu perangkat untuk perhitungan bisnis. Timestamp disimpan sebagai timestamptz.
+
+C.14 Code Organization
+
+app/                    route saja (tipis)
+  (auth)/login/
+  (app)/                layout = auth guard + shell
+  (app)/kasir/          cart provider; sub-route pesanan/, bayar/, selesai/
+  (app)/riwayat/        page + detail/ (?id=)
+  (app)/laporan, menu, kategori, karyawan, pengaturan, backup, lainnya
+components/ui/          primitive UI bersama (dibuat saat dipakai ≥2 kali)
+components/layout/      AppShell, BottomNav, Sidebar
+features/<domain>/      komponen, hooks, dan api.ts khusus domain
+lib/                    flat, logic bisnis/utility bersama:
+                        money.ts, cart.ts, checkout.ts, time.ts, csv.ts,
+                        permissions.ts, supabase.ts, idb.ts, database.types.ts
+supabase/               config.toml, migrations/, functions/, tests/ (pgTAP), seed.sql
+tests/e2e/              Playwright; unit test berada di samping source (*.test.ts)
+
+Aturan:
+
+tidak ada generic CRUD framework;
+tidak ada repository/service abstraction layer kecuali ada kebutuhan nyata;
+tidak ada folder paralel services/, hooks/, types/ global.
+
+C.15 Dependency Policy
+
+Package hanya ditambahkan jika ada kebutuhan teknis yang konkret dan dijelaskan.
+
+Baseline runtime:
+
+next, react, react-dom, @supabase/supabase-js, idb
+
+Baseline dev:
+
+typescript, tailwindcss (+ postcss plugin), eslint (+ eslint-config-next), vitest, @testing-library/react, jsdom, fake-indexeddb, @playwright/test, supabase (CLI)
+
+Satu tool build service worker dapat ditambahkan pada Phase 10 jika dibutuhkan.
+
+Tidak digunakan tanpa justifikasi eksplisit:
+
+Redux / Zustand;
+TanStack Query;
+Zod;
+react-hook-form;
+date-fns / dayjs (gunakan Intl dengan timeZone);
+package uuid (gunakan crypto.randomUUID);
+chart library (gunakan SVG sederhana);
+UI component library;
+next-pwa;
+@supabase/ssr.
 
 # H. DEPLOYMENT SPECIFICATION
 
@@ -223,6 +405,10 @@ For a solo MVP, at minimum:
 main
 feature/*
 ```
+
+The default branch is `main`. The local branch was renamed from `master` to `main` before any GitHub remote is added.
+
+`git push` and any deploy command require explicit approval (see SECURITY E.13).
 
 ---
 
@@ -267,6 +453,8 @@ DATABASE_PASSWORD
 
 # H.4 Build
 
+Node.js: 24 LTS (pinned via `.nvmrc` and `package.json` engines; same version on Cloudflare).
+
 Expected:
 
 ```text
@@ -274,6 +462,12 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
+```
+
+Database tests (from Phase 2):
+
+```text
+supabase test db
 ```
 
 All must pass before production.
@@ -339,6 +533,10 @@ Before launch:
 ✓ Cashier access restricted
 ✓ Owner access works
 ✓ Service role not exposed
+✓ Public sign-up disabled
+✓ Direct DML on transactions/transaction_items revoked
+✓ Service worker does not cache Supabase responses
+✓ Supabase Security Advisor reviewed
 ✓ Production environment variables configured
 ✓ Debug logs disabled
 ```
@@ -381,3 +579,9 @@ archive/clean unused data
 
 only last:
 consider paid upgrade
+```
+
+Free-tier operational notes (procedures documented in `docs/RUNBOOK.md`, created in Phase 2):
+
+- A free-tier Supabase project may be paused after a period of inactivity (e.g., a long closure). Pending transactions stay in the device outbox until the project is restored from the dashboard.
+- The free tier has no automatic database backups. The owner's regular CSV export (PRD §27) is the only data export; it is not a full disaster-recovery backup.
