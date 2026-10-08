@@ -11,6 +11,7 @@
 * Avoid premature abstractions.
 * Avoid unnecessary dependencies.
 * Do not duplicate business logic.
+* Follow the code organization in `docs/TECHNICAL_SPEC.md` C.14 and the dependency policy in C.15.
 
 ## React
 

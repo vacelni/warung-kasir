@@ -1,41 +1,36 @@
 ---
-
 name: offline-sync
-description: WarungKasir offline transaction and synchronization architecture. Use when implementing IndexedDB, offline cashier behavior, transaction queues, network recovery, retries, or sync logic.
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+description: WarungKasir offline transaction and synchronization architecture. Use when implementing IndexedDB, the local outbox, offline cashier behavior, transaction queues, network recovery, retries, offline auth behavior, the service worker, or sync logic.
+---
 
 # WarungKasir Offline Sync
 
+Authoritative sources: `docs/TECHNICAL_SPEC.md` C.9–C.12, `docs/PRD.md` §28, `docs/UI_SPEC.md` A.24, `docs/DATABASE.md` D.9. If this skill and the docs disagree, the docs win; report the conflict.
+
 ## Goal
 
-Cashier transaction must remain usable during temporary network loss.
+Cashier transactions remain usable during temporary network loss.
+
+## Single Write Path (from Phase 6)
+
+Every checkout — online or offline — writes the transaction to the IndexedDB outbox first, shows success, then syncs. There is no separate online-only save path. Phase 10 hardens this system; it does not introduce it.
 
 ## Offline Capabilities
 
-Offline cashier should support:
-
-* opening cashier
-* viewing cached products
-* selecting products
-* cart operations
-* total calculation
-* payment calculation
-* change calculation
-* saving pending transaction
+- opening the app shell
+- viewing the cached catalog (products, categories, store) stored in IndexedDB
+- cart operations and all calculations
+- saving the transaction to the outbox
 
 ## Local Persistence
 
-Use IndexedDB for persistent offline state.
+Use IndexedDB (`idb`). Pending transactions must survive refresh, browser close, and network failure. Request `navigator.storage.persist()`.
 
-Pending transactions must survive:
-
-* page refresh
-* browser close
-* temporary network failure
+Outbox entry: `id`, `code`, `store_id`, `cashier_id`, `created_at` (sale time, preserved on sync), `items[]` (`product_id`, `product_name`, `unit_price`, `quantity`, `subtotal`), `total`, `paid_amount`, `change_amount`, `sync_status`, `attempts`, `last_error`, `last_attempt_at`.
 
 ## Status
 
-Use explicit synchronization states:
+Client-only sync status (never stored as the server transaction status):
 
 ```text
 pending
@@ -46,45 +41,51 @@ failed
 
 ## Sync
 
-Trigger synchronization when:
+Trigger when:
 
-* application starts
-* authenticated session becomes available
-* network becomes available
-* retry is requested
+- the application starts
+- an authenticated session becomes available or is refreshed
+- the `online` event fires
+- the tab becomes visible
+- a checkout completes
+- the user taps retry
 
-Do not perform aggressive polling.
+No aggressive polling. Use exponential backoff (cap ≈ 5 minutes). Do not rely on `navigator.onLine` alone.
+
+Use `navigator.locks` so only one tab syncs at a time.
+
+Send only entries whose `cashier_id` matches the logged-in user.
 
 ## Duplicate Prevention
 
-Each transaction receives its UUID before sync.
-
-The server must not create a second transaction for the same UUID.
-
-Sync must be idempotent.
+The UUID is assigned before the first save and never changes. The RPC is idempotent (`ON CONFLICT (id) DO NOTHING`) and returns `created` or `exists`; both mean `synced`.
 
 ## Failure
 
-When sync fails:
+- Transient (network, timeout, 5xx, session not yet refreshable): stay `pending`, retry with backoff.
+- Permanent (RPC validation rejection, inactive account): mark `failed`, keep the entry, preserve the error, show it with a retry action.
 
-* keep the transaction;
-* preserve error state;
-* increment retry information;
-* retry later.
+Never delete a pending, syncing, or failed transaction automatically. Synced entries may be pruned after server confirmation (retention decided in Phase 10).
 
-Never silently delete a failed transaction.
+## Auth While Offline
+
+- Token refresh fails because the device is offline → keep the user in the app with the cached identity; selling continues; sync waits for a valid session.
+- Server explicitly rejects the session, or the user logs out → redirect to login; the outbox stays.
+- Logout with pending/failed entries → blocking dialog with the count (Sinkronkan sekarang / Batal / Tetap keluar). Entries remain on the device and sync when the same user logs in again on it.
+
+## Service Worker
+
+Cache only static assets and the exported app shell. Never cache Supabase (`*.supabase.co`) requests. The catalog lives in IndexedDB and is cleared on logout; the outbox is never cleared. Activate a new service worker on the next launch, never mid-transaction.
 
 ## Testing
 
-Test:
-
-1. create transaction online;
-2. disconnect network;
-3. create transaction;
+1. create a transaction online;
+2. disconnect the network;
+3. create a transaction;
 4. refresh;
-5. reopen application;
-6. restore network;
+5. close and reopen the browser (persistent context);
+6. restore the network;
 7. sync;
-8. verify exactly one server transaction.
+8. verify exactly one server transaction per UUID, with `created_at` equal to the sale time.
 
-Also test interrupted sync and retries.
+Also test: interrupted sync and retry (G.11), offline token expiry, logout with pending entries, a different user logging in on the same device, two tabs syncing, and a permanent RPC rejection (entry stays `failed`).

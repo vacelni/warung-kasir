@@ -1,5 +1,35 @@
 {
   "env": {
     "ENABLE_STOP_REVIEW": "0"
+  },
+  "permissions": {
+    "ask": [
+      "Bash(git push *)",
+      "PowerShell(git push *)",
+      "Bash(supabase db push *)",
+      "PowerShell(supabase db push *)",
+      "Bash(npx supabase db push *)",
+      "PowerShell(npx supabase db push *)",
+      "Bash(supabase db reset --linked *)",
+      "PowerShell(supabase db reset --linked *)",
+      "Bash(npx supabase db reset --linked *)",
+      "PowerShell(npx supabase db reset --linked *)",
+      "Bash(supabase functions deploy *)",
+      "PowerShell(supabase functions deploy *)",
+      "Bash(npx supabase functions deploy *)",
+      "PowerShell(npx supabase functions deploy *)",
+      "Bash(supabase secrets set *)",
+      "PowerShell(supabase secrets set *)",
+      "Bash(npx supabase secrets set *)",
+      "PowerShell(npx supabase secrets set *)",
+      "Bash(wrangler deploy *)",
+      "PowerShell(wrangler deploy *)",
+      "Bash(npx wrangler deploy *)",
+      "PowerShell(npx wrangler deploy *)",
+      "Bash(wrangler pages deploy *)",
+      "PowerShell(wrangler pages deploy *)",
+      "Bash(npx wrangler pages deploy *)",
+      "PowerShell(npx wrangler pages deploy *)"
+    ]
   }
 }

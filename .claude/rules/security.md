@@ -17,6 +17,12 @@ Only two roles exist:
 
 Do not invent additional roles without explicit approval.
 
+Exactly one owner per store. Roles are fixed and cannot be changed by any client.
+
+A cashier can read only their own transactions; the owner can read all transactions in the store.
+
+Public sign-up is disabled. Cashier accounts are created, activated/deactivated, and password-reset only through an Edge Function that verifies, in code, that the caller is the active owner of the same store. The owner cannot deactivate themselves.
+
 Frontend permission checks are UX only.
 
 They are not security controls.

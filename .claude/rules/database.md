@@ -49,6 +49,14 @@ Transaction item records must preserve:
 
 Historical transactions must remain unchanged when product prices change.
 
+The only write path for transactions is the atomic `create_transaction` RPC (DATABASE D.9). Direct INSERT/UPDATE/DELETE on `transactions` and `transaction_items` is revoked for clients.
+
+`transaction_items` carries `store_id` with the composite foreign key `(transaction_id, store_id) → transactions(id, store_id)`.
+
+`transactions.created_at` is the client sale time (preserved on sync); `synced_at` is set by the server. `status` is `completed` or `cancelled` only; sync status never goes into the database.
+
+Business dates use `Asia/Jakarta` (DATABASE D.10).
+
 ## Integrity
 
 Database/backend validation must not blindly trust frontend-calculated totals.
@@ -65,7 +73,7 @@ paid_amount >= total
 
 ## Deletion
 
-Products used by historical transactions must not be hard-deleted.
+Products are never hard-deleted in the MVP (no DELETE grant/policy for clients).
 
 Use `is_active = false`.
 
