@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { PagePlaceholder } from '@/components/shared/PagePlaceholder';
+import { CategoryList } from '@/features/categories/CategoryList';
 
 export const metadata: Metadata = { title: 'Kategori' };
 
 export default function Page() {
-  return <PagePlaceholder title="Kategori" />;
+  return <CategoryList />;
 }

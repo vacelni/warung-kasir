@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { PagePlaceholder } from '@/components/shared/PagePlaceholder';
+import { ProductList } from '@/features/products/ProductList';
 
 export const metadata: Metadata = { title: 'Menu' };
 
 export default function Page() {
-  return <PagePlaceholder title="Menu" />;
+  return <ProductList />;
 }
