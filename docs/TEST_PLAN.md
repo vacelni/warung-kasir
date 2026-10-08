@@ -334,6 +334,7 @@ Test at database level:
 
 valid sale → 'created'; header and items stored atomically
 same id submitted again → 'exists'; exactly 1 transaction, unchanged
+same id from another cashier or another store → rejected (WK001); the existing transaction is unchanged
 underpayment (paid_amount < total) → rejected
 arithmetic mismatch (subtotal, total, or change) → rejected
 empty items → rejected

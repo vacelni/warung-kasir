@@ -172,7 +172,8 @@ Validasi:
 
 caller = auth.uid(); profil harus ada dan is_active = true;
 store_id dan cashier_id diambil dari profil caller, tidak pernah dari payload;
-jika id sudah ada → kembalikan 'exists' tanpa perubahan apa pun;
+jika id sudah ada dengan store_id dan cashier_id yang sama dengan caller → kembalikan 'exists' tanpa perubahan apa pun;
+jika id sudah ada milik cashier atau store lain → tolak (kode validasi, mis. WK001) tanpa perubahan apa pun, agar transaksi orang lain tidak pernah dilaporkan sebagai tersinkron di perangkat caller;
 items tidak boleh kosong;
 setiap product_id harus milik store caller (produk aktif maupun tidak aktif diterima);
 quantity ≥ 1, unit_price ≥ 1, subtotal = unit_price × quantity;
