@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Profile } from '@/features/auth/account';
+import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
 import type { Catalog } from './api';
 import { CartProvider } from './CartProvider';
 import { CartList } from './CartList';
@@ -41,7 +42,8 @@ beforeAll(() => {
 
 const fetchSpy = vi.fn();
 
-beforeEach(() => {
+beforeEach(async () => {
+  await resetIndexedDb();
   mocks.profile = cashier;
   mocks.fetchCatalog.mockReset();
   mocks.fetchCatalog.mockResolvedValue(CATALOG);

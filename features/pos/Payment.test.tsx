@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Profile } from '@/features/auth/account';
 import { getOutboxEntry, listSyncable, markNotSynced, markSynced, markSyncing } from '@/features/offline/outbox';
+import { syncManager } from '@/features/offline/syncManager';
 import type { TransactionSnapshot } from '@/lib/checkout';
 import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
 import { testSnapshot } from '@/lib/test-support/transactions';
@@ -19,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   prefetch: vi.fn(),
   searchParams: new URLSearchParams(),
   syncOnce: vi.fn(),
-  failNextEnqueue: false,
+  failNextEnqueue: false as false | 'error' | 'quota',
   enqueued: [] as TransactionSnapshot[],
 }));
 
@@ -28,7 +29,11 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mocks.replace, push: mocks.push, prefetch: mocks.prefetch }),
   useSearchParams: () => mocks.searchParams,
 }));
-vi.mock('@/features/offline/sync', () => ({ syncOnce: mocks.syncOnce }));
+// The sync manager is real; only the network pass it runs is replaced.
+vi.mock('@/features/offline/sync', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/offline/sync')>()),
+  syncOnce: mocks.syncOnce,
+}));
 // The real outbox (on fake-indexeddb), with a switch to make the next write fail.
 vi.mock('@/features/offline/outbox', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/features/offline/outbox')>();
@@ -37,8 +42,11 @@ vi.mock('@/features/offline/outbox', async (importOriginal) => {
     enqueueTransaction: async (snapshot: TransactionSnapshot) => {
       mocks.enqueued.push(snapshot);
       if (mocks.failNextEnqueue) {
+        const kind = mocks.failNextEnqueue;
         mocks.failNextEnqueue = false;
-        throw new Error('QuotaExceededError');
+        // What IndexedDB throws when the device storage is full.
+        if (kind === 'quota') throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+        throw new Error('UnknownError: storage unavailable');
       }
       return actual.enqueueTransaction(snapshot);
     },
@@ -86,9 +94,14 @@ beforeEach(async () => {
   mocks.searchParams = new URLSearchParams();
   mocks.failNextEnqueue = false;
   mocks.enqueued = [];
+  // The app shell starts the sync agent for the signed-in cashier.
+  syncManager.setCashier(cashier.id);
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  syncManager.setCashier(null);
+});
 
 describe('PaymentForm (UI_SPEC A.12–A.13, TEST_PLAN G.4)', () => {
   it('shows the total and a numeric payment field; Bayar waits for an amount', async () => {
@@ -271,7 +284,7 @@ describe('PaymentForm (UI_SPEC A.12–A.13, TEST_PLAN G.4)', () => {
     renderPayment();
     await screen.findByText('Rp40.000');
     typePaid('50000');
-    mocks.failNextEnqueue = true;
+    mocks.failNextEnqueue = 'error';
 
     fireEvent.click(payButton());
 
@@ -286,6 +299,21 @@ describe('PaymentForm (UI_SPEC A.12–A.13, TEST_PLAN G.4)', () => {
     expect(retried.id).toBe(failed.id);
     expect(retried.created_at).toBe(failed.created_at);
     expect(retried.code).toBe(failed.code);
+  });
+
+  it('full device storage: says so, keeps the order, never shows success (no false "saved")', async () => {
+    renderPayment();
+    await screen.findByText('Rp40.000');
+    typePaid('50000');
+    mocks.failNextEnqueue = 'quota';
+
+    fireEvent.click(payButton());
+
+    expect(await screen.findByText(/Penyimpanan perangkat penuh\. Transaksi belum tersimpan\./)).toBeTruthy();
+    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(screen.getByTestId('cart-count').textContent).toBe('4');
+    expect(await listSyncable(cashier.id)).toEqual([]);
+    expect((payButton() as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('shows the empty cart state when there is nothing to pay', () => {
@@ -370,8 +398,22 @@ describe('CheckoutSuccess (UI_SPEC A.14)', () => {
     renderSuccess();
 
     expect(await screen.findByText('Gagal sinkron')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'COBA LAGI' })).toBeNull();
-    expect(await getOutboxEntry(ID)).toBeDefined();
+    // The reason, in words the cashier can act on.
+    expect(screen.getByText(/Akun kasir ini tidak aktif di server/)).toBeTruthy();
+    expect(await getOutboxEntry(ID)).toMatchObject({ sync_status: 'failed', last_error: 'WK002: inactive' });
+    expect(mocks.syncOnce).toHaveBeenCalledOnce();
+
+    // Coba Lagi (UI_SPEC A.24): back to pending, then the same sale is sent again.
+    mocks.syncOnce.mockImplementation(async () => {
+      expect((await getOutboxEntry(ID))?.sync_status).toBe('pending');
+      await markSyncing(ID, new Date());
+      await markSynced(ID);
+      return { synced: 1, pending: 0, failed: 0 };
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'COBA LAGI' }));
+
+    expect(await screen.findByText('Tersinkron')).toBeTruthy();
+    expect(mocks.syncOnce).toHaveBeenCalledTimes(2);
   });
 
   it('does not sync again when the sale is already synced', async () => {

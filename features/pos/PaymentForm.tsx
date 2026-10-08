@@ -19,12 +19,13 @@ import {
   parseAmountInput,
   shortfallMessage,
 } from '@/lib/checkout';
+import { isQuotaError } from '@/lib/idb';
 import { formatRupiah, type Money } from '@/lib/money';
 import { BackHeader } from './BackHeader';
 import { useCart } from './CartProvider';
 import { QuickAmounts } from './QuickAmounts';
 
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'full';
 
 /**
  * Payment screen (UI_SPEC A.12–A.13). BAYAR writes the sale to the device outbox, the only
@@ -75,8 +76,9 @@ export function PaymentForm() {
       await enqueueTransaction(sale);
     } catch (error) {
       console.error('Could not save the transaction on this device:', error);
+      // Not saved: never show success, never clear the order; the cashier can try again.
       submitting.current = false;
-      setSaveStatus('error');
+      setSaveStatus(isQuotaError(error) ? 'full' : 'error');
       return;
     }
 
@@ -160,6 +162,12 @@ export function PaymentForm() {
         {saveStatus === 'error' && (
           <Alert tone="danger">
             Gagal menyimpan transaksi di perangkat ini. Transaksi belum tersimpan. Tekan BAYAR untuk mencoba lagi.
+          </Alert>
+        )}
+        {saveStatus === 'full' && (
+          <Alert tone="danger">
+            Penyimpanan perangkat penuh. Transaksi belum tersimpan. Kosongkan ruang penyimpanan HP (hapus file atau
+            aplikasi yang tidak dipakai), lalu tekan BAYAR lagi.
           </Alert>
         )}
 

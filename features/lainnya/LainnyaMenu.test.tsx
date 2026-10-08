@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Profile } from '@/features/auth/account';
+import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
 import { LainnyaMenu } from './LainnyaMenu';
 
 const mocks = vi.hoisted(() => ({ profile: null as Profile | null, logout: vi.fn() }));
@@ -14,7 +15,8 @@ vi.mock('@/features/auth/AuthProvider', () => ({
 const owner: Profile = { id: 'o', storeId: 's', name: 'Bu Sari', role: 'owner' };
 const cashier: Profile = { id: 'c', storeId: 's', name: 'Andi', role: 'cashier' };
 
-beforeEach(() => {
+beforeEach(async () => {
+  await resetIndexedDb();
   mocks.logout.mockReset();
 });
 
@@ -46,7 +48,7 @@ describe('LainnyaMenu (UI_SPEC A.7)', () => {
     expect(screen.getByRole('button', { name: 'Keluar' })).toBeTruthy();
   });
 
-  it('signs out through the shared auth flow', async () => {
+  it('signs out through the shared auth flow when nothing is waiting to sync', async () => {
     mocks.profile = cashier;
     mocks.logout.mockResolvedValue(undefined);
     render(<LainnyaMenu />);

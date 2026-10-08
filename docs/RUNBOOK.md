@@ -48,7 +48,8 @@ npm run typecheck
 npm run test          # unit + component tests (no Supabase needed)
 npm run build
 npm run test:db       # pgTAP: schema, constraints, grants, RLS (needs local Supabase)
-npm run test:e2e      # Playwright; auth flows need local Supabase + seed + .env.local
+npm run test:e2e      # Playwright; auth flows need local Supabase + seed + .env.local;
+                      # the offline/PWA specs build out/ and serve it on :3200 (tests/e2e/support/static-server.mts)
 npm run test:functions  # admin-cashier Edge Function over real HTTP (needs the local stack + Docker)
 ```
 
@@ -126,7 +127,16 @@ Do not delete auth users who have a profile; the database blocks it so historica
 
 ---
 
-## 4. Free-tier pause and restore
+## 4. Offline, sync, and app updates (Phase 10)
+
+- Sales are saved on the device first (IndexedDB outbox) and sent to Supabase by the sync manager: at app start, when the session is refreshed, when the network returns, when the app comes back to the foreground, after each checkout, and on **Coba lagi**. Temporary failures retry by themselves (10 s, doubling, at most every 5 minutes while the app is open). Lainnya → *Status sinkronisasi* shows what is still on the device.
+- **Gagal sinkron** = the server refused the sale (e.g. the cashier was deactivated, WK002). It stays on the device. Fix the cause (reactivate the cashier), then tap *Coba lagi* on that device, signed in as that cashier.
+- A device's pending sales are sent only by the cashier who made them, signed in on that same device. Logging out with pending sales shows a warning; *Tetap keluar* keeps them for that cashier's next login.
+- Do not clear site data, uninstall the PWA, or reset the phone while Lainnya shows unsynced sales: the outbox is on the device only. The app asks the browser for persistent storage; Chrome may still refuse it (best effort).
+- App updates: after a deploy, an open app keeps running the version it started with. The new version downloads in the background and is used from the next launch (close the app completely — all tabs/windows — and open it again). It never switches in the middle of a sale.
+- Deploy with `npm run build` (it writes `out/sw.js`); see TECHNICAL_SPEC H.5.
+
+## 5. Free-tier pause and restore
 
 A free-tier Supabase project can be paused after a period of inactivity (for example a long closure of the warung).
 

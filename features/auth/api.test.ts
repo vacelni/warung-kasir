@@ -1,7 +1,12 @@
 import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AUTH_MESSAGES, type ProfileRow } from './account';
+import { readCatalog, saveCatalog } from '@/features/offline/catalogCache';
+import { enqueueTransaction, getOutboxEntry } from '@/features/offline/outbox';
+import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
+import { testSnapshot } from '@/lib/test-support/transactions';
+import { AUTH_MESSAGES, type Profile, type ProfileRow } from './account';
 import { loadSession, signIn, signOut } from './api';
+import { readIdentity, saveIdentity } from './identityCache';
 
 const supabase = vi.hoisted(() => {
   const profileQuery = {
@@ -58,7 +63,8 @@ function storedSession() {
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await resetIndexedDb();
   vi.clearAllMocks();
   supabase.auth.signOut.mockResolvedValue({ error: null });
   supabase.auth.signInWithPassword.mockResolvedValue({ data: { user: { id: USER_ID } }, error: null });
@@ -235,5 +241,102 @@ describe('signOut', () => {
 
     await expect(signOut()).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledOnce();
+  });
+});
+
+describe('offline identity (decision D5)', () => {
+  const andi: Profile = { id: USER_ID, storeId: activeCashier.store_id, name: 'Andi', role: 'cashier' };
+  const CONFIRMED = new Date('2026-10-07T03:00:00.000Z');
+
+  it('remembers the profile the server confirmed, at login and at app start', async () => {
+    await signIn('kasir1.a@warungkasir.test', 'password123');
+    expect(await readIdentity(USER_ID)).toEqual(andi);
+
+    await resetIndexedDb();
+    storedSession();
+    await loadSession();
+    expect(await readIdentity(USER_ID)).toEqual(andi);
+  });
+
+  it('offline with an expired token: stays in the app with the cached profile, no sign-out', async () => {
+    await saveIdentity(andi, CONFIRMED);
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: new AuthRetryableFetchError('Failed to fetch', 0),
+    });
+
+    expect(await loadSession()).toEqual({ status: 'signedIn', profile: andi, offline: true });
+    expect(supabase.auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it('offline with a valid token: uses the cached profile of that same user', async () => {
+    await saveIdentity(andi, CONFIRMED);
+    storedSession();
+    profileFails(0);
+
+    expect(await loadSession()).toEqual({ status: 'signedIn', profile: andi, offline: true });
+  });
+
+  it('never opens with another user’s cached profile', async () => {
+    await saveIdentity({ ...andi, id: 'someone-else' }, CONFIRMED);
+    storedSession();
+    profileFails(0);
+
+    expect(await loadSession()).toEqual({ status: 'unreachable' });
+  });
+
+  it('without a cached profile, offline is "unreachable" (nothing to open with yet)', async () => {
+    storedSession();
+    profileFails(0);
+
+    expect(await loadSession()).toEqual({ status: 'unreachable' });
+  });
+
+  it('a server rejection is not offline: signed out, and the cached profile is gone', async () => {
+    await saveIdentity(andi, CONFIRMED);
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: null },
+      error: new AuthApiError('Invalid Refresh Token: Refresh Token Not Found', 400, 'refresh_token_not_found'),
+    });
+
+    expect(await loadSession()).toEqual({ status: 'signedOut', reason: 'expired' });
+    expect(await readIdentity(null)).toBeNull();
+  });
+
+  it('a deactivated account is signed out and loses its cached profile', async () => {
+    await saveIdentity(andi, CONFIRMED);
+    storedSession();
+    profileReturns(null);
+
+    expect(await loadSession()).toEqual({ status: 'signedOut', reason: 'inactive' });
+    expect(await readIdentity(USER_ID)).toBeNull();
+  });
+});
+
+describe('signOut and device data (TECHNICAL_SPEC C.10, C.12)', () => {
+  it('clears the cached profile and catalog, and keeps every outbox entry', async () => {
+    await saveIdentity({ id: USER_ID, storeId: 'store-a', name: 'Andi', role: 'cashier' }, new Date());
+    await saveCatalog(USER_ID, 'store-a', { products: [], categories: [] }, new Date());
+    await enqueueTransaction(testSnapshot({ id: 'pending-sale', cashier_id: USER_ID }));
+    await enqueueTransaction(testSnapshot({ id: 'other-cashier', cashier_id: 'someone-else' }));
+
+    await signOut();
+
+    expect(await readIdentity(null)).toBeNull();
+    expect(await readCatalog(USER_ID, 'store-a')).toBeNull();
+    expect(await getOutboxEntry('pending-sale')).toMatchObject({ cashier_id: USER_ID, sync_status: 'pending' });
+    expect(await getOutboxEntry('other-cashier')).toMatchObject({ cashier_id: 'someone-else' });
+  });
+
+  it('works offline: the local session and caches are cleared, the outbox is not', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    supabase.auth.signOut.mockResolvedValue({ error: new AuthRetryableFetchError('Failed to fetch', 0) });
+    await saveIdentity({ id: USER_ID, storeId: 'store-a', name: 'Andi', role: 'cashier' }, new Date());
+    await enqueueTransaction(testSnapshot({ cashier_id: USER_ID }));
+
+    await signOut();
+
+    expect(await readIdentity(null)).toBeNull();
+    expect(await getOutboxEntry(testSnapshot().id)).toBeDefined();
   });
 });

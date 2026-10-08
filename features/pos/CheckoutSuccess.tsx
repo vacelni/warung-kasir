@@ -10,8 +10,9 @@ import { SuccessState } from '@/components/shared/SuccessState';
 import { Badge } from '@/components/ui/Badge';
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { useProfile } from '@/features/auth/AuthProvider';
-import { getOutboxEntry, type OutboxEntry } from '@/features/offline/outbox';
-import { syncOnce } from '@/features/offline/sync';
+import { getOutboxEntry, retryFailed, type OutboxEntry } from '@/features/offline/outbox';
+import { failureReason } from '@/features/offline/sync';
+import { syncManager, type SyncTrigger } from '@/features/offline/syncManager';
 import { formatRupiah, type Money } from '@/lib/money';
 import { useCart } from './CartProvider';
 
@@ -29,10 +30,13 @@ async function readOwnEntry(id: string, cashierId: string): Promise<OutboxEntry 
   return entry && entry.cashier_id === cashierId ? entry : null;
 }
 
-/** Runs one sync, then re-reads the entry. A failed sync never loses the sale; it stays on the device. */
-async function syncThenRead(entry: OutboxEntry, cashierId: string): Promise<OutboxEntry> {
+/**
+ * Asks the sync manager for a run (it joins any run already going, across tabs too), then re-reads
+ * the entry. A failed sync never loses the sale; it stays on the device and is retried with backoff.
+ */
+async function syncThenRead(entry: OutboxEntry, trigger: SyncTrigger): Promise<OutboxEntry> {
   try {
-    await syncOnce(cashierId);
+    await syncManager.request(trigger);
   } catch (error) {
     console.error('Sync after checkout failed; the sale stays on this device:', error);
   }
@@ -63,7 +67,7 @@ export function CheckoutSuccess() {
         }
         setState({ status: 'ready', entry, syncing: needsSync(entry) });
         if (!needsSync(entry)) return;
-        return syncThenRead(entry, profile.id).then((after) => {
+        return syncThenRead(entry, 'checkout').then((after) => {
           if (active) setState({ status: 'ready', entry: after, syncing: false });
         });
       })
@@ -76,10 +80,34 @@ export function CheckoutSuccess() {
     };
   }, [id, profile.id]);
 
+  // A sync started elsewhere (online event, backoff retry, another tab) can change this sale's
+  // status while the screen is open; follow it without polling.
+  const entryId = state.status === 'ready' ? state.entry.id : null;
+  useEffect(() => {
+    if (!entryId) return;
+    let version = syncManager.getSnapshot().version;
+    return syncManager.subscribe(() => {
+      const next = syncManager.getSnapshot().version;
+      if (next === version) return;
+      version = next;
+      void getOutboxEntry(entryId)
+        .then((entry) => {
+          if (!entry) return;
+          setState((prev) =>
+            prev.status === 'ready' && !prev.syncing && prev.entry.id === entry.id ? { ...prev, entry } : prev,
+          );
+        })
+        .catch((error: unknown) => console.error('Could not read the saved transaction:', error));
+    });
+  }, [entryId]);
+
   function retrySync() {
     if (state.status !== 'ready') return;
     setState({ ...state, syncing: true });
-    syncThenRead(state.entry, profile.id)
+    // A sale the server rejected goes back to pending first; the same UUID is sent again.
+    const reset = state.entry.sync_status === 'failed' ? retryFailed(profile.id) : Promise.resolve(0);
+    reset
+      .then(() => syncThenRead(state.entry, 'manual'))
       .then((after) => setState({ status: 'ready', entry: after, syncing: false }))
       .catch((error: unknown) => {
         console.error('Could not read the saved transaction:', error);
@@ -145,7 +173,7 @@ export function CheckoutSuccess() {
           LIHAT DETAIL
         </Link>
         {newTransactionButton}
-        {!syncing && entry.sync_status === 'pending' && (
+        {!syncing && (entry.sync_status === 'pending' || entry.sync_status === 'failed') && (
           <Button variant="secondary" className="w-full" onClick={retrySync}>
             COBA LAGI
           </Button>
@@ -187,7 +215,7 @@ function SyncLine({ entry, syncing }: { entry: OutboxEntry; syncing: boolean }) 
         <div role="status" className="flex flex-col items-center gap-2 text-center">
           <Badge tone="danger">Gagal sinkron</Badge>
           <p className="text-body text-muted">
-            Server menolak transaksi ini. Transaksi tetap tersimpan di perangkat ini. Hubungi Owner.
+            {failureReason(entry.last_error)} Transaksi tetap tersimpan di perangkat ini. Hubungi Owner.
           </p>
         </div>
       );

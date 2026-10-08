@@ -8,8 +8,11 @@ const viewports = [
 ];
 
 const PORT = 3100;
+// The built static export (out/), served like Cloudflare, for the service worker and offline specs.
+const STATIC_PORT = 3200;
 
 const MUTATION_SPECS = /\.mutation\.spec\.ts$/;
+const OFFLINE_SPECS = /\.offline\.spec\.ts$/;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -25,7 +28,7 @@ export default defineConfig({
     // Read-only specs, once per viewport, in parallel.
     ...viewports.map(({ name, width, height }) => ({
       name,
-      testIgnore: MUTATION_SPECS,
+      testIgnore: [MUTATION_SPECS, OFFLINE_SPECS],
       use: { ...devices['Pixel 7'], viewport: { width, height } },
     })),
     // Specs that change shared catalog data (create/deactivate products, categories). They run
@@ -38,11 +41,35 @@ export default defineConfig({
       dependencies: viewports.map(({ name }) => name),
       use: { ...devices['Pixel 7'], viewport: { width: 360, height: 800 } },
     },
+    // Offline, sync, and service worker specs (TEST_PLAN G.9–G.11): against the production build,
+    // because the service worker exists only there. They save sales, sign accounts in and out, and
+    // briefly deactivate a cashier, so they run alone, after everything else.
+    {
+      name: 'offline',
+      testMatch: OFFLINE_SPECS,
+      fullyParallel: false,
+      dependencies: ['mutations'],
+      use: {
+        ...devices['Pixel 7'],
+        viewport: { width: 360, height: 800 },
+        baseURL: `http://localhost:${STATIC_PORT}`,
+        serviceWorkers: 'allow',
+      },
+    },
   ],
-  webServer: {
-    command: `npm run dev -- --port ${PORT}`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: `npm run dev -- --port ${PORT}`,
+      url: `http://localhost:${PORT}`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      // Builds out/ (next build + sw.js), then serves it.
+      command: `npm run build && node tests/e2e/support/static-server.mts ${STATIC_PORT}`,
+      url: `http://localhost:${STATIC_PORT}`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 300_000,
+    },
+  ],
 });

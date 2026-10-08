@@ -2,6 +2,8 @@
 
 import { ToastProvider } from '@/components/ui/Toast';
 import { useProfile } from '@/features/auth/AuthProvider';
+import { SyncIndicator } from '@/features/offline/SyncStatus';
+import { useSyncAgent } from '@/features/offline/useSyncAgent';
 import { BottomNav } from './BottomNav';
 import { Sidebar } from './Sidebar';
 
@@ -11,6 +13,8 @@ import { Sidebar } from './Sidebar';
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const profile = useProfile();
+  // One sync agent per tab, for the signed-in user (TECHNICAL_SPEC C.12).
+  useSyncAgent(profile.id);
 
   return (
     <ToastProvider>
@@ -23,9 +27,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="min-h-dvh md:flex">
         <Sidebar profile={profile} />
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-border bg-surface px-4 py-2 md:hidden">
-            <p className="text-section-title font-bold text-primary">WarungKasir</p>
-            <p className="truncate text-caption text-muted">{profile.name}</p>
+          <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-surface px-4 py-2 md:hidden">
+            <div className="min-w-0 flex-1">
+              <p className="text-section-title font-bold text-primary">WarungKasir</p>
+              <p className="truncate text-caption text-muted">{profile.name}</p>
+            </div>
+            <SyncIndicator />
           </header>
           <main
             id="konten"

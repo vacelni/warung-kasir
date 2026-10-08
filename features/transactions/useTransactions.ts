@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProfile } from '@/features/auth/AuthProvider';
 import { listEntries } from '@/features/offline/outbox';
+import { syncManager } from '@/features/offline/syncManager';
 import { listTransactions, type Cursor } from './api';
 import {
   dateRangeFor,
@@ -88,8 +89,9 @@ export function useTransactions({ preset, order, search }: HistoryFilters) {
     };
   }, [key, preset, order, search, userId, storeId, userName, cashierId]);
 
-  // Sync status can change while the screen is open (another tab, a finished sync). Re-read the
-  // outbox when the user comes back, so badges stay true without polling.
+  // Sync status can change while the screen is open (a finished sync here or in another tab).
+  // Re-read the outbox when the sync manager reports a change or the user comes back, so badges
+  // stay true without polling.
   useEffect(() => {
     function refreshLocal() {
       if (document.visibilityState !== 'visible') return;
@@ -98,8 +100,18 @@ export function useTransactions({ preset, order, search }: HistoryFilters) {
         setLoaded((prev) => (prev?.key === forKey ? { ...prev, local } : prev));
       });
     }
+    let version = syncManager.getSnapshot().version;
+    const unsubscribe = syncManager.subscribe(() => {
+      const next = syncManager.getSnapshot().version;
+      if (next === version) return;
+      version = next;
+      refreshLocal();
+    });
     document.addEventListener('visibilitychange', refreshLocal);
-    return () => document.removeEventListener('visibilitychange', refreshLocal);
+    return () => {
+      unsubscribe();
+      document.removeEventListener('visibilitychange', refreshLocal);
+    };
   }, [userId, storeId, userName]);
 
   function loadMore() {

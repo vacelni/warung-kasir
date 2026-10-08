@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '@/components/layout/AppShell';
+import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
 import type { Profile, SessionState } from './account';
 import { AuthGate } from './AuthGate';
 import { AuthProvider } from './AuthProvider';
@@ -12,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   pathname: '/kasir',
   loadSession: vi.fn(),
   signOut: vi.fn(),
+  clearDeviceCaches: vi.fn(),
+  cachedSession: vi.fn(),
   signedOutListener: null as (() => void) | null,
 }));
 
@@ -23,6 +26,9 @@ vi.mock('next/navigation', () => ({
 vi.mock('./api', () => ({
   loadSession: mocks.loadSession,
   signOut: mocks.signOut,
+  clearDeviceCaches: mocks.clearDeviceCaches,
+  cachedSession: mocks.cachedSession,
+  onSessionRefreshed: () => () => {},
   onSignedOut: (callback: () => void) => {
     mocks.signedOutListener = callback;
     return () => {
@@ -57,8 +63,11 @@ function renderApp() {
   );
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await resetIndexedDb();
   vi.clearAllMocks();
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+  mocks.cachedSession.mockResolvedValue(null);
   mocks.pathname = '/kasir';
   mocks.signedOutListener = null;
   // Like auth-js: signing out emits SIGNED_OUT to listeners.
@@ -117,6 +126,101 @@ describe('AuthGate (AC-13)', () => {
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
+  it('opens offline with the cached profile, no redirect, no blocking screen (D5)', async () => {
+    sessionIs({ status: 'signedIn', profile: cashier, offline: true });
+    renderApp();
+
+    expect(await screen.findByText('Konten privat')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'COBA LAGI' })).toBeNull();
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('offline profile: when the network returns and the server rejects the session, goes to login', async () => {
+    sessionIs({ status: 'signedIn', profile: cashier, offline: true });
+    renderApp();
+    await screen.findByText('Konten privat');
+
+    sessionIs({ status: 'signedOut', reason: 'expired' });
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/login?alasan=expired'));
+    expect(mocks.loadSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('offline profile: when the network returns and the server confirms, stays in the app', async () => {
+    sessionIs({ status: 'signedIn', profile: cashier, offline: true });
+    renderApp();
+    await screen.findByText('Konten privat');
+
+    sessionIs({ status: 'signedIn', profile: { ...cashier, name: 'Andi P.' } });
+    window.dispatchEvent(new Event('online'));
+
+    expect(await within(screen.getByRole('banner')).findByText('Andi P.')).toBeTruthy();
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('offline profile: still unreachable after an online event, stays in the app as is', async () => {
+    sessionIs({ status: 'signedIn', profile: cashier, offline: true });
+    renderApp();
+    await screen.findByText('Konten privat');
+
+    sessionIs({ status: 'unreachable' });
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(() => expect(mocks.loadSession).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('Konten privat')).toBeTruthy();
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('a verified session does not re-check on every online event', async () => {
+    sessionIs({ status: 'signedIn', profile: cashier });
+    renderApp();
+    await screen.findByText('Konten privat');
+
+    window.dispatchEvent(new Event('online'));
+
+    expect(mocks.loadSession).toHaveBeenCalledOnce();
+  });
+
+  it('no network at all: opens at once with the cached profile while the server check is still running', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    let finishCheck!: (state: SessionState) => void;
+    mocks.loadSession.mockReturnValue(new Promise<SessionState>((resolve) => (finishCheck = resolve)));
+    mocks.cachedSession.mockResolvedValue({ status: 'signedIn', profile: cashier, offline: true });
+    renderApp();
+
+    expect(await screen.findByText('Konten privat')).toBeTruthy();
+
+    // The slow check ends "still unreachable": the app stays open.
+    finishCheck({ status: 'unreachable' });
+    await waitFor(() => expect(mocks.loadSession).toHaveBeenCalledOnce());
+    expect(screen.getByText('Konten privat')).toBeTruthy();
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('a late server rejection after opening from the cache still sends the user to login', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    let finishCheck!: (state: SessionState) => void;
+    mocks.loadSession.mockReturnValue(new Promise<SessionState>((resolve) => (finishCheck = resolve)));
+    mocks.cachedSession.mockResolvedValue({ status: 'signedIn', profile: cashier, offline: true });
+    renderApp();
+    await screen.findByText('Konten privat');
+
+    finishCheck({ status: 'signedOut', reason: 'expired' });
+
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/login?alasan=expired'));
+  });
+
+  it('slow server, nothing cached: keeps loading, never opens without an identity', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    mocks.loadSession.mockReturnValue(new Promise(() => {}));
+    renderApp();
+
+    await waitFor(() => expect(mocks.cachedSession).toHaveBeenCalled());
+    expect(screen.getByText('Memuat…')).toBeTruthy();
+    expect(screen.queryByText('Konten privat')).toBeNull();
+  });
+
   it('sends the user to login when the server ends the session while in use', async () => {
     sessionIs({ status: 'signedIn', profile: cashier });
     renderApp();
@@ -126,6 +230,8 @@ describe('AuthGate (AC-13)', () => {
 
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/login?alasan=expired'));
     expect(screen.queryByText('Konten privat')).toBeNull();
+    // The cached profile and catalog go with the session; the outbox stays (C.10, C.12).
+    expect(mocks.clearDeviceCaches).toHaveBeenCalled();
   });
 
   it('logs out to the login page without an "expired" notice', async () => {

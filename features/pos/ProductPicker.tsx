@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { Alert } from '@/components/ui/Alert';
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -14,6 +15,7 @@ import { CategoryTabs } from './CategoryTabs';
 import { categoriesWithProducts, filterProducts, type CatalogProduct } from './filter';
 import { PRODUCT_GRID_CLASSES, ProductGrid } from './ProductGrid';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { formatJakartaDate, formatJakartaTime } from '@/lib/time';
 
 /** The cashier screen: search, category tabs, product grid, and the docked order summary (UI_SPEC A.9). */
 export function ProductPicker() {
@@ -89,6 +91,14 @@ export function ProductPicker() {
             )
           }
         />
+      )}
+
+      {catalog?.source === 'device' && (
+        <Alert tone="warning" className="mb-4">
+          Tidak dapat terhubung ke server. Menu dan harga memakai data tersimpan di perangkat (
+          {formatJakartaDate(new Date(catalog.savedAt))} {formatJakartaTime(new Date(catalog.savedAt))} WIB). Transaksi
+          tetap dapat dibuat.
+        </Alert>
       )}
 
       {catalog && catalog.products.length > 0 && (

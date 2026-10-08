@@ -15,7 +15,11 @@ export type ProfileRow = Pick<Tables<'profiles'>, 'id' | 'store_id' | 'name' | '
 export type SignedOutReason = 'inactive' | 'expired';
 
 export type SessionState =
-  | { status: 'signedIn'; profile: Profile }
+  /**
+   * `offline`: the server could not be reached, so this is the profile it last confirmed on this
+   * device (decision D5). The app works with it; the server still checks every sync.
+   */
+  | { status: 'signedIn'; profile: Profile; offline?: true }
   | { status: 'signedOut'; reason: SignedOutReason | null }
   /** The server could not be reached, so the session could not be checked. Never a reason to log out (D5). */
   | { status: 'unreachable' };

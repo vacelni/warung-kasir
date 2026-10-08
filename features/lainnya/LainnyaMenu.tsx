@@ -2,10 +2,11 @@
 
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import { InfoRow, LinkRow } from '@/components/ui/LinkRow';
+import { LinkRow } from '@/components/ui/LinkRow';
 import { ABOUT_ITEM, lainnyaManagementItems } from '@/components/layout/navigation';
 import { LogoutButton } from '@/features/auth/LogoutButton';
 import { useProfile } from '@/features/auth/AuthProvider';
+import { SyncStatusPanel } from '@/features/offline/SyncStatus';
 import { ROLE_LABELS } from '@/lib/permissions';
 
 /** Contents of the Lainnya page per role (UI_SPEC A.7). */
@@ -34,10 +35,7 @@ export function LainnyaMenu() {
         {lainnyaManagementItems(profile.role).map((item) => (
           <LinkRow key={item.href} href={item.href} label={item.label} icon={item.icon} />
         ))}
-        {/* The pending/failed counts arrive with the outbox and sync. */}
-        <InfoRow label="Status sinkronisasi" icon="sync">
-          <Badge tone="neutral">Segera hadir</Badge>
-        </InfoRow>
+        <SyncStatusPanel />
         <LinkRow href={ABOUT_ITEM.href} label={ABOUT_ITEM.label} icon={ABOUT_ITEM.icon} />
       </Card>
 

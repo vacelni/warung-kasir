@@ -9,10 +9,21 @@ type RpcError = { code?: string; message: string };
 export type SyncErrorKind = 'transient' | 'permanent';
 
 /**
- * Permanent: create_transaction rejected the sale (WK001) or the account is not active (WK002),
- * or PostgreSQL reported a data/integrity error (classes 22, 23); resending cannot help, so the
- * entry becomes `failed` and stays on the device. Everything else (network, timeout, 5xx, an
- * expired or missing session, a function not deployed yet) may succeed later, so it stays `pending`.
+ * Error mapping (TECHNICAL_SPEC C.12, SECURITY E.10). Decides whether resending can ever help.
+ *
+ * Permanent → `failed`, kept on the device, resent only when the user taps "Coba lagi":
+ *  - WK001: create_transaction rejected the sale itself (arithmetic, code, product of another
+ *    store, an id that belongs to another cashier or store);
+ *  - WK002: the caller has no active profile (cashier deactivated before the sale synced);
+ *  - SQLSTATE classes 22 (data exception, e.g. integer overflow) and 23 (integrity violation).
+ *
+ * Transient → stays `pending`, retried with backoff:
+ *  - no response at all (offline, DNS, connection reset), a timeout (AbortError), a 5xx page;
+ *  - PGRST301/PGRST303 and other JWT errors: the access token expired and auth-js will refresh
+ *    it. If the server instead rejects the refresh token (banned or deleted user), auth-js ends
+ *    the session and the app goes to login (D5), so this can never loop forever;
+ *  - 42501 (no grant): the request went out without a session;
+ *  - anything unexpected (e.g. PGRST202 while a migration is being deployed).
  */
 export function classifySyncError(error: RpcError): SyncErrorKind {
   return /^(WK|22|23)/.test(error.code ?? '') ? 'permanent' : 'transient';
@@ -57,8 +68,11 @@ export type SyncResult = {
   /** Still pending after this run (including entries not attempted after a network failure). */
   pending: number;
   failed: number;
-  /** Set when nothing was sent because there is no valid session for this cashier yet. */
-  skipped?: 'no-session';
+  /**
+   * Set when nothing was sent: `no-session` = no valid session for this cashier yet;
+   * `offline` = the browser reports no network at all (decided by the sync manager).
+   */
+  skipped?: 'no-session' | 'offline';
 };
 
 async function runSync(cashierId: string): Promise<SyncResult> {
@@ -96,10 +110,12 @@ async function runSync(cashierId: string): Promise<SyncResult> {
 let queue: Promise<unknown> = Promise.resolve();
 
 /**
- * Sends this cashier's pending sales to create_transaction once, oldest first (basic sync,
- * Phase 6; triggers, backoff, and cross-tab locking come in Phase 10). Only entries whose
+ * Sends this cashier's pending sales to create_transaction once, oldest first. Only entries whose
  * cashier_id is the signed-in user are sent. Never deletes an entry. Calls in the same tab run
  * one after another, so the same entry is never sent twice at once.
+ *
+ * This is one pass. Triggers, backoff, and the cross-tab lock live in syncManager.ts, which is
+ * what the app calls; nothing else should call this directly.
  */
 export function syncOnce(cashierId: string): Promise<SyncResult> {
   const run = queue.then(() => runSync(cashierId));
@@ -109,4 +125,16 @@ export function syncOnce(cashierId: string): Promise<SyncResult> {
     () => undefined,
   );
   return run;
+}
+
+/**
+ * Why the server rejected a sale, in words the cashier can act on (PRD §38, UI_SPEC A.21), from
+ * the error kept in `last_error` ("WK002: …"). The technical text stays in the entry for the Owner.
+ */
+export function failureReason(lastError: string | null): string {
+  const code = lastError?.split(':', 1)[0]?.trim() ?? '';
+  if (code === 'WK002') return 'Akun kasir ini tidak aktif di server, sehingga transaksi tidak dapat disimpan.';
+  if (code === 'WK001') return 'Server menolak data transaksi ini (data tidak valid untuk warung ini).';
+  if (/^(22|23)/.test(code)) return 'Server menolak data transaksi ini karena nilainya tidak valid.';
+  return 'Server menolak transaksi ini.';
 }

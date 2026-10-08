@@ -12,7 +12,9 @@ export type { OutboxEntry, SyncStatus };
  */
 export async function enqueueTransaction(snapshot: TransactionSnapshot): Promise<OutboxEntry> {
   const db = await getDb();
-  const tx = db.transaction('outbox', 'readwrite');
+  // `strict`: the browser reports success only after the write reached disk, so a sale the
+  // success screen shows survives a crash or power loss right after (Chrome defaults to relaxed).
+  const tx = db.transaction('outbox', 'readwrite', { durability: 'strict' });
   const existing = await tx.store.get(snapshot.id);
   if (existing) {
     await tx.done;
@@ -26,9 +28,9 @@ export async function enqueueTransaction(snapshot: TransactionSnapshot): Promise
     last_error: null,
     last_attempt_at: null,
   };
-  // add, not put: an existing entry is never overwritten.
-  await tx.store.add(entry);
-  await tx.done;
+  // add, not put: an existing entry is never overwritten. Awaiting both together means a
+  // refused write (full storage) rejects here, once, instead of leaving tx.done unhandled.
+  await Promise.all([tx.store.add(entry), tx.done]);
   return entry;
 }
 
@@ -65,8 +67,7 @@ async function updateSyncFields(id: string, update: (entry: OutboxEntry) => Sync
   const entry = await tx.store.get(id);
   if (!entry) throw new Error(`Outbox entry ${id} does not exist.`);
   const next: OutboxEntry = { ...entry, ...update(entry) };
-  await tx.store.put(next);
-  await tx.done;
+  await Promise.all([tx.store.put(next), tx.done]);
   return next;
 }
 
@@ -97,4 +98,62 @@ export function markNotSynced(id: string, status: 'pending' | 'failed', error: s
     last_error: error,
     last_attempt_at: entry.last_attempt_at,
   }));
+}
+
+/** Not yet on the server, for one cashier: what the sync indicator and the logout warning count. */
+export type UnsyncedCounts = { pending: number; failed: number };
+
+export async function countUnsynced(cashierId: string): Promise<UnsyncedCounts> {
+  const entries = await listEntries(cashierId);
+  let pending = 0;
+  let failed = 0;
+  for (const entry of entries) {
+    if (entry.sync_status === 'failed') failed += 1;
+    else if (entry.sync_status !== 'synced') pending += 1;
+  }
+  return { pending, failed };
+}
+
+/**
+ * "Coba lagi" on failed sales: puts this cashier's `failed` entries back to `pending` so the next
+ * sync sends them again (same UUID, same sale). The last error is kept until a new attempt
+ * replaces it. Returns how many were reset.
+ */
+export async function retryFailed(cashierId: string): Promise<number> {
+  const db = await getDb();
+  const tx = db.transaction('outbox', 'readwrite');
+  const entries = await tx.store.index('by_cashier').getAll(cashierId);
+  const failed = entries.filter((entry) => entry.sync_status === 'failed');
+  await Promise.all([
+    ...failed.map((entry) => tx.store.put({ ...entry, sync_status: 'pending' })),
+    tx.done,
+  ]);
+  return failed.length;
+}
+
+/**
+ * Local copies of synced sales are kept this long after the server confirmed them, so the
+ * device's own recent sales still open offline (history, detail). The server keeps them forever.
+ */
+export const SYNCED_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Removes this cashier's `synced` entries confirmed more than SYNCED_RETENTION_MS before `now`.
+ * The only deletion in the outbox: `pending`, `syncing`, and `failed` entries are never removed,
+ * and the status is re-read inside the same write transaction, so an entry cannot change state
+ * between the check and the delete. Returns how many were removed.
+ */
+export async function pruneSynced(cashierId: string, now: Date): Promise<number> {
+  const cutoff = now.getTime() - SYNCED_RETENTION_MS;
+  const db = await getDb();
+  const tx = db.transaction('outbox', 'readwrite');
+  const entries = await tx.store.index('by_cashier').getAll(cashierId);
+  const expired = entries.filter(
+    (entry) =>
+      entry.sync_status === 'synced' &&
+      entry.last_attempt_at !== null &&
+      Date.parse(entry.last_attempt_at) < cutoff,
+  );
+  await Promise.all([...expired.map((entry) => tx.store.delete(entry.id)), tx.done]);
+  return expired.length;
 }

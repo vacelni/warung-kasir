@@ -188,7 +188,7 @@ See SECURITY E.12.
 
 | Item | Decide in |
 |---|---|
-| Service worker build tooling (one tool or hand-written) | Phase 10 |
-| Retention period for synced outbox entries | Phase 10 |
+| Service worker build tooling (one tool or hand-written) | Phase 10 — decided: hand-written `features/offline/sw.ts`, compiled with the project's TypeScript by `scripts/build-sw.mts` after `next build`; no new dependency |
+| Retention period for synced outbox entries | Phase 10 — decided: 7 days after server confirmation (`SYNCED_RETENTION_MS`); pending/syncing/failed are never removed |
 | Cloudflare Pages vs Workers static assets | Phase 13 |
 | `docs/RUNBOOK.md` content | Phase 2 (created), Phase 13 (completed) |

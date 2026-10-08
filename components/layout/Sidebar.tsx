@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { LogoutButton } from '@/features/auth/LogoutButton';
+import { SyncIndicator } from '@/features/offline/SyncStatus';
 import { cx } from '@/lib/cx';
 import { ROLE_LABELS } from '@/lib/permissions';
 import type { Profile } from '@/features/auth/account';
@@ -16,8 +17,9 @@ export function Sidebar({ profile }: { profile: Profile }) {
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-border bg-surface md:sticky md:top-0 md:flex md:h-dvh md:flex-col">
-      <div className="px-5 pt-6 pb-4">
+      <div className="flex flex-col items-start gap-2 px-5 pt-6 pb-4">
         <p className="text-section-title font-bold text-primary">WarungKasir</p>
+        <SyncIndicator />
       </div>
 
       <nav aria-label="Navigasi samping" className="flex-1 overflow-y-auto px-3 pb-4">

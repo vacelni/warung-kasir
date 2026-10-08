@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Profile, SessionState } from './account';
-import { loadSession, onSignedOut, signOut } from './api';
+import { cachedSession, clearDeviceCaches, loadSession, onSessionRefreshed, onSignedOut, signOut } from './api';
 
 export type AuthState = { status: 'loading' } | SessionState;
 
@@ -24,19 +24,49 @@ async function resolveSession(): Promise<SessionState> {
   }
 }
 
+/**
+ * How long app start waits for the server before opening with the cached profile. Offline, a token
+ * refresh is retried by auth-js for up to ~25 s and a profile read for ~7 s; the cashier must not
+ * wait for that to sell. With no network at all (navigator.onLine false) it does not wait.
+ */
+export const START_TIMEOUT_MS = 4_000;
+
+/** A late server answer replaces the cached profile, unless it only says "still unreachable". */
+function settle(prev: AuthState, next: SessionState): AuthState {
+  const openedFromCache = prev.status === 'signedIn' && prev.offline === true;
+  return openedFromCache && next.status === 'unreachable' ? prev : next;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
   const loggingOut = useRef(false);
 
   useEffect(() => {
     let active = true;
+    let resolved = false;
     void resolveSession().then((next) => {
-      if (active) setState(next);
+      resolved = true;
+      if (active) setState((prev) => settle(prev, next));
     });
+    // The server check keeps running; if it later rejects the session, the app still goes to login.
+    const fallback = setTimeout(
+      () => {
+        if (resolved) return;
+        cachedSession()
+          .then((cached) => {
+            if (active && !resolved && cached) setState((prev) => (prev.status === 'loading' ? cached : prev));
+          })
+          .catch((error: unknown) => console.error('Could not read the cached profile:', error));
+      },
+      navigator.onLine ? START_TIMEOUT_MS : 0,
+    );
 
     let unsubscribe = () => {};
     try {
       unsubscribe = onSignedOut(() => {
+        // The session ended outside the app (refresh token rejected, logout in another tab):
+        // drop the cached profile and catalog. The outbox stays (TECHNICAL_SPEC C.12).
+        void clearDeviceCaches();
         // Only a session in use can end here; during start-up loadSession decides.
         setState((prev) =>
           prev.status === 'signedIn'
@@ -50,9 +80,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       active = false;
+      clearTimeout(fallback);
       unsubscribe();
     };
   }, []);
+
+  // Opened offline with the cached profile (D5): as soon as the network or the session is back,
+  // ask the server again. It either confirms the account (stay, now verified) or rejects the
+  // session or the profile (go to login; the outbox stays). Still unreachable: nothing changes.
+  const offline = state.status === 'signedIn' && state.offline === true;
+  useEffect(() => {
+    if (!offline) return;
+    let checking = false;
+    let active = true;
+    function recheck() {
+      if (checking || document.visibilityState !== 'visible') return;
+      checking = true;
+      void resolveSession().then((next) => {
+        checking = false;
+        const stillOffline = next.status === 'unreachable' || (next.status === 'signedIn' && next.offline);
+        if (active && !stillOffline) setState(next);
+      });
+    }
+    window.addEventListener('online', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    let stopSession = () => {};
+    try {
+      stopSession = onSessionRefreshed(recheck);
+    } catch (error) {
+      console.error('Could not watch the session:', error);
+    }
+    return () => {
+      active = false;
+      window.removeEventListener('online', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+      stopSession();
+    };
+  }, [offline]);
 
   const retry = useCallback(() => {
     setState({ status: 'loading' });

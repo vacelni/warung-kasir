@@ -88,11 +88,14 @@ function seedOutbox(page: Page, entries: OutboxSeed[]) {
     (rows) =>
       new Promise<void>((resolve, reject) => {
         // Same schema as lib/idb.ts, so the app opens the database untouched afterwards.
-        const open = indexedDB.open('warung-kasir', 1);
+        const open = indexedDB.open('warung-kasir', 2);
         open.onupgradeneeded = () => {
-          if (!open.result.objectStoreNames.contains('outbox')) {
-            open.result.createObjectStore('outbox', { keyPath: 'id' }).createIndex('by_cashier', 'cashier_id');
+          const db = open.result;
+          if (!db.objectStoreNames.contains('outbox')) {
+            db.createObjectStore('outbox', { keyPath: 'id' }).createIndex('by_cashier', 'cashier_id');
           }
+          if (!db.objectStoreNames.contains('identity')) db.createObjectStore('identity', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('catalog')) db.createObjectStore('catalog', { keyPath: 'user_id' });
         };
         open.onerror = () => reject(open.error);
         open.onsuccess = () => {

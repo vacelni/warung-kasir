@@ -1,0 +1,17 @@
+# Cloudflare static-asset response headers (copied to out/_headers by `next build`).
+# Phase 10: service worker and cache behavior. Content-Security-Policy is defined and audited in
+# Phase 12 (SECURITY E.12). Supabase responses never pass through these rules: they come from
+# the Supabase origin, and the service worker never caches them (features/offline/sw.ts).
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+
+# The browser must always see the newest worker; a new version then waits for the next launch.
+/sw.js
+  Cache-Control: no-cache
+
+# Content-hashed build files never change under the same URL.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

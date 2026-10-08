@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Profile } from '@/features/auth/account';
+import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
 import { AppShell } from './AppShell';
 
 const mocks = vi.hoisted(() => ({ profile: null as Profile | null, pathname: '/kasir' }));
@@ -11,11 +12,14 @@ vi.mock('@/features/auth/AuthProvider', () => ({
   useProfile: () => mocks.profile,
   useAuth: () => ({ logout: vi.fn() }),
 }));
+// The shell's sync agent listens for session refreshes; no Supabase client in unit tests.
+vi.mock('@/features/auth/api', () => ({ onSessionRefreshed: () => () => {} }));
 
 const owner: Profile = { id: 'o', storeId: 's', name: 'Bu Sari', role: 'owner' };
 const cashier: Profile = { id: 'c', storeId: 's', name: 'Andi', role: 'cashier' };
 
-beforeEach(() => {
+beforeEach(async () => {
+  await resetIndexedDb();
   mocks.pathname = '/kasir';
 });
 

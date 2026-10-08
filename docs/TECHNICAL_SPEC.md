@@ -496,6 +496,8 @@ out
 
 and provides automatic Git-based deployments/preview deployments.
 
+WarungKasir adds a post-build step (Phase 10) that writes `out/sw.js` with the precache list of the exported files, so the build command must be `npm run build` (`next build && node scripts/build-sw.mts`), not `npx next build`; otherwise the deployed app has no service worker and does not open offline.
+
 ---
 
 # H.6 Production Smoke Test
