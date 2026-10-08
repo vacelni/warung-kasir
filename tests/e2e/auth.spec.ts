@@ -70,6 +70,8 @@ test('the owner signs in, keeps the session across reload and reopen, and signs 
   await page.goto('/login');
   await expect(page).toHaveURL(/\/kasir$/);
 
+  // Logout lives on the Lainnya page (UI_SPEC A.7).
+  await page.getByRole('link', { name: 'Lainnya' }).click();
   await page.getByRole('button', { name: 'Keluar' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto('/kasir');

@@ -1,8 +1,8 @@
+import type { Metadata } from 'next';
+import { PagePlaceholder } from '@/components/shared/PagePlaceholder';
+
+export const metadata: Metadata = { title: 'Kasir' };
+
 export default function KasirPage() {
-  return (
-    <>
-      <h1 className="text-2xl font-semibold">Kasir</h1>
-      <p className="mt-2 text-gray-600">Halaman kasir sedang disiapkan.</p>
-    </>
-  );
+  return <PagePlaceholder title="Kasir" />;
 }

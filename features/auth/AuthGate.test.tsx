@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '@/components/layout/AppShell';
 import type { Profile, SessionState } from './account';
@@ -98,7 +98,7 @@ describe('AuthGate (AC-13)', () => {
     renderApp();
 
     expect(await screen.findByText('Konten privat')).toBeTruthy();
-    expect(screen.getByText('Andi')).toBeTruthy();
+    expect(within(screen.getByRole('banner')).getByText('Andi')).toBeTruthy();
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 

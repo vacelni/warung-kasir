@@ -10,5 +10,5 @@ export default function HomePage() {
     router.replace('/kasir');
   }, [router]);
 
-  return <p className="p-4 text-sm text-gray-600">Memuat…</p>;
+  return <p className="p-4 text-body text-muted">Memuat…</p>;
 }

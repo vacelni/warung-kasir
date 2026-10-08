@@ -40,4 +40,11 @@ test('web app manifest is served and linked', async ({ page, request }) => {
   expect(response.ok()).toBe(true);
   const manifest = await response.json();
   expect(manifest).toMatchObject({ name: 'WarungKasir', display: 'standalone' });
+
+  // Android installability needs PNG icons at 192px and 512px.
+  const sizes = manifest.icons.filter((icon: { type: string }) => icon.type === 'image/png').map((icon: { sizes: string }) => icon.sizes);
+  expect(sizes).toEqual(expect.arrayContaining(['192x192', '512x512']));
+  for (const icon of manifest.icons) {
+    expect((await request.get(icon.src)).ok()).toBe(true);
+  }
 });

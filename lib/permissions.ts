@@ -8,12 +8,14 @@ export const ROLES = ['owner', 'cashier'] as const;
 
 export type Role = (typeof ROLES)[number];
 
+export const ROLE_LABELS: Record<Role, string> = { owner: 'Owner', cashier: 'Cashier' };
+
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ROLES as readonly string[]).includes(value);
 }
 
 /** Routes (and their sub-routes) a cashier may open. Every other app route is owner-only. */
-const CASHIER_ROUTES = ['/kasir', '/riwayat', '/lainnya'] as const;
+const CASHIER_ROUTES = ['/kasir', '/riwayat', '/lainnya', '/tentang'] as const;
 
 export function canAccessRoute(role: Role, pathname: string): boolean {
   if (role === 'owner') return true;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { canAccessRoute, isRole } from './permissions';
 
 const OWNER_ONLY_ROUTES = ['/laporan', '/menu', '/kategori', '/karyawan', '/pengaturan', '/backup'];
-const CASHIER_ROUTES = ['/kasir', '/kasir/pesanan', '/kasir/bayar', '/kasir/selesai', '/riwayat', '/riwayat/detail', '/lainnya'];
+const CASHIER_ROUTES = ['/kasir', '/kasir/pesanan', '/kasir/bayar', '/kasir/selesai', '/riwayat', '/riwayat/detail', '/lainnya', '/tentang'];
 
 describe('isRole', () => {
   it('accepts only the two fixed roles', () => {

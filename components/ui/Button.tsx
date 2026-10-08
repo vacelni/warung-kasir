@@ -1,23 +1,25 @@
 import type { ButtonHTMLAttributes } from 'react';
+import { cx } from '@/lib/cx';
 
-type Variant = 'primary' | 'secondary';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'danger-outline';
 
+// 48px minimum height and a 12px radius (UI_SPEC A.6). Focus ring comes from globals.css.
 const BASE =
-  'inline-flex min-h-12 items-center justify-center rounded-xl px-5 text-base font-semibold ' +
-  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700 ' +
-  'disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex min-h-12 items-center justify-center gap-2 rounded-control px-5 text-base font-semibold ' +
+  'select-none disabled:cursor-not-allowed disabled:opacity-50';
 
-// orange-700 keeps white text above 4.5:1 contrast (PRD §42).
-const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-orange-700 text-white active:bg-orange-800',
-  secondary: 'border border-gray-300 bg-white text-gray-800 active:bg-gray-100',
+const VARIANTS: Record<ButtonVariant, string> = {
+  primary: 'bg-primary text-white active:bg-primary-hover hover:bg-primary-hover',
+  secondary: 'border border-border-strong bg-surface text-foreground active:bg-subtle hover:bg-subtle',
+  danger: 'bg-danger text-white active:bg-danger-hover hover:bg-danger-hover',
+  'danger-outline': 'border border-danger-border bg-surface text-danger active:bg-danger-soft hover:bg-danger-soft',
 };
 
-export function buttonClasses(variant: Variant = 'primary', className?: string): string {
-  return [BASE, VARIANTS[variant], className].filter(Boolean).join(' ');
+export function buttonClasses(variant: ButtonVariant = 'primary', className?: string): string {
+  return cx(BASE, VARIANTS[variant], className);
 }
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant };
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant };
 
 export function Button({ variant = 'primary', className, type = 'button', ...props }: ButtonProps) {
   return <button type={type} className={buttonClasses(variant, className)} {...props} />;

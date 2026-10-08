@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { loginPath } from './account';
 import { useAuth } from './AuthProvider';
 
@@ -25,7 +26,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     case 'unreachable':
       return (
         <StatusScreen title="Tidak dapat terhubung ke server">
-          <p className="text-base text-gray-700">
+          <p className="text-base text-muted">
             Akun Anda belum dapat diperiksa. Periksa koneksi internet, lalu coba lagi.
           </p>
           <Button onClick={retry} className="w-full">
@@ -44,7 +45,8 @@ function StatusScreen({ title, children }: { title: string; children?: React.Rea
   return (
     <main className="flex min-h-dvh items-center justify-center px-4">
       <div className="flex w-full max-w-sm flex-col gap-4 text-center" role="status">
-        <p className="text-lg font-semibold text-gray-900">{title}</p>
+        {!children && <Spinner size={32} className="mx-auto" />}
+        <p className="text-section-title font-semibold text-foreground">{title}</p>
         {children}
       </div>
     </main>
