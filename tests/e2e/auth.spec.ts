@@ -1,0 +1,102 @@
+import { expect, test, type Page } from '@playwright/test';
+
+// Requires the local Supabase stack with the dev seed (`npx supabase start`,
+// `npx supabase db reset`) and .env.local pointing at it. See docs/RUNBOOK.md.
+//
+// Auth flows do not depend on the viewport; run them once so the suite stays
+// under the local Auth sign-in rate limit.
+test.skip(({ viewport }) => viewport?.width !== 360, 'auth flows run on the 360px viewport only');
+
+const PASSWORD = 'password123';
+
+async function login(page: Page, email: string, password = PASSWORD) {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'MASUK' }).click();
+}
+
+test('a private page redirects to login without a session (AC-13)', async ({ page }) => {
+  await page.goto('/kasir');
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByText('Halaman kasir sedang disiapkan.')).toHaveCount(0);
+});
+
+test('empty fields are validated inline', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByRole('button', { name: 'MASUK' }).click();
+
+  await expect(page.getByText('Email wajib diisi.')).toBeVisible();
+  await expect(page.getByText('Password wajib diisi.')).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test('a wrong password is rejected', async ({ page }) => {
+  await login(page, 'owner.a@warungkasir.test', 'salah-password');
+
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Email atau password salah.');
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test('an unknown email is rejected with the same message', async ({ page }) => {
+  await login(page, 'tidak.ada@warungkasir.test');
+
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Email atau password salah.');
+});
+
+test('an inactive account cannot sign in and keeps no session', async ({ page }) => {
+  await login(page, 'nonaktif.a@warungkasir.test');
+
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Akun tidak aktif atau belum terdaftar. Hubungi Owner.');
+  await page.goto('/kasir');
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test('the owner signs in, keeps the session across reload and reopen, and signs out', async ({ page, context }) => {
+  await login(page, 'owner.a@warungkasir.test');
+  await expect(page).toHaveURL(/\/kasir$/);
+  await expect(page.getByRole('banner')).toContainText('Bu Sari');
+
+  await page.reload();
+  await expect(page.getByRole('banner')).toContainText('Bu Sari');
+
+  const reopened = await context.newPage();
+  await reopened.goto('/kasir');
+  await expect(reopened.getByRole('banner')).toContainText('Bu Sari');
+  await reopened.close();
+
+  // With a session, the login page goes straight to the cashier (PRD §11).
+  await page.goto('/login');
+  await expect(page).toHaveURL(/\/kasir$/);
+
+  await page.getByRole('button', { name: 'Keluar' }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto('/kasir');
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test('a cashier signs in and sees their own name', async ({ page }) => {
+  await login(page, 'kasir1.a@warungkasir.test');
+
+  await expect(page).toHaveURL(/\/kasir$/);
+  await expect(page.getByRole('banner')).toContainText('Andi');
+});
+
+test('a session the server rejects sends the user back to login', async ({ page }) => {
+  await login(page, 'kasir2.a@warungkasir.test');
+  await expect(page.getByRole('banner')).toContainText('Budi');
+
+  // Simulate an expired access token whose refresh token was revoked.
+  await page.evaluate(() => {
+    const key = Object.keys(localStorage).find((k) => /^sb-.+-auth-token$/.test(k));
+    if (!key) throw new Error('no stored Supabase session');
+    const session = JSON.parse(localStorage.getItem(key) ?? '{}');
+    localStorage.setItem(key, JSON.stringify({ ...session, expires_at: 0, refresh_token: 'revoked-token' }));
+  });
+  await page.reload();
+
+  await expect(page).toHaveURL(/\/login(\?alasan=expired)?$/);
+  await page.goto('/kasir');
+  await expect(page).toHaveURL(/\/login$/);
+});
