@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "WarungKasir",
+  "short_name": "WarungKasir",
+  "description": "Sistem kasir internal untuk warung makan.",
+  "lang": "id",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9fafb",
+  "theme_color": "#ea580c",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -37,3 +37,16 @@ Thumbs.db
 
 # Claude local settings
 .claude/settings.local.json
+
+# TypeScript / Next.js generated
+*.tsbuildinfo
+next-env.d.ts
+
+# Supabase CLI local state
+supabase/.temp/
+
+# Cloudflare Wrangler local state
+.wrangler/
+
+# Next.js auto-generated agent notes (rewritten by `next dev`)
+AGENTS.md
