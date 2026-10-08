@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { formatJakartaDate, formatJakartaDay, formatJakartaTime, jakartaDateKey, jakartaDayStart } from './time';
+import {
+  formatJakartaDate,
+  formatJakartaDay,
+  formatJakartaDayMonth,
+  formatJakartaTime,
+  jakartaDateKey,
+  jakartaDayStart,
+  jakartaDayStartOfKey,
+} from './time';
 
 const originalTz = process.env.TZ;
 
@@ -90,5 +98,33 @@ describe('jakartaDayStart (TEST_PLAN G.17)', () => {
     process.env.TZ = 'America/Los_Angeles';
     // 18:00Z on 7 Oct is 01:00 on 8 Oct in Jakarta (and still 7 Oct in Los Angeles).
     expect(jakartaDayStart(new Date('2026-10-07T18:00:00Z')).toISOString()).toBe('2026-10-07T17:00:00.000Z');
+  });
+});
+
+describe('jakartaDayStartOfKey (reports)', () => {
+  it('starts the named Jakarta day at 00:00 WIB, which is 17:00Z the day before', () => {
+    expect(jakartaDayStartOfKey('20260810').toISOString()).toBe('2026-08-09T17:00:00.000Z');
+  });
+
+  it('moves by whole days across a month end', () => {
+    expect(jakartaDayStartOfKey('20260831', 1).toISOString()).toBe('2026-08-31T17:00:00.000Z');
+    expect(jakartaDayStartOfKey('20260901', -1).toISOString()).toBe('2026-08-30T17:00:00.000Z');
+  });
+
+  it('rejects a malformed key and a day that does not exist', () => {
+    expect(() => jakartaDayStartOfKey('2026-08-10')).toThrow(RangeError);
+    expect(() => jakartaDayStartOfKey('20260231')).toThrow(RangeError);
+  });
+
+  it.each(['UTC', 'America/Los_Angeles'])('ignores the device timezone (%s)', (tz) => {
+    process.env.TZ = tz;
+    expect(jakartaDayStartOfKey('20260810').toISOString()).toBe('2026-08-09T17:00:00.000Z');
+  });
+});
+
+describe('formatJakartaDayMonth', () => {
+  it('names the Jakarta day, not the UTC day', () => {
+    expect(formatJakartaDayMonth(new Date('2026-08-09T17:00:00Z'))).toBe('10 Agu');
+    expect(formatJakartaDayMonth(new Date('2026-08-09T16:59:59Z'))).toBe('9 Agu');
   });
 });

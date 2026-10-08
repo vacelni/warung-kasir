@@ -14,21 +14,24 @@ export type RecordedQuery = { table: string; steps: Array<[string, ...unknown[]]
 export function fakeSupabase(result: (query: RecordedQuery) => FakeResult) {
   const queries: RecordedQuery[] = [];
 
+  function chain(query: RecordedQuery) {
+    queries.push(query);
+    const builder: Record<string, unknown> = {};
+    for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'order', 'gte', 'lt', 'ilike', 'or', 'limit', 'retry', 'maybeSingle', 'abortSignal']) {
+      builder[method] = (...args: unknown[]) => {
+        query.steps.push([method, ...args]);
+        return builder;
+      };
+    }
+    builder.then = (resolve: (value: FakeResult) => unknown, reject?: (reason: unknown) => unknown) =>
+      Promise.resolve(result(query)).then(resolve, reject);
+    return builder;
+  }
+
   const client = {
-    from(table: string) {
-      const query: RecordedQuery = { table, steps: [] };
-      queries.push(query);
-      const builder: Record<string, unknown> = {};
-      for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'order', 'gte', 'lt', 'ilike', 'or', 'limit', 'retry', 'maybeSingle']) {
-        builder[method] = (...args: unknown[]) => {
-          query.steps.push([method, ...args]);
-          return builder;
-        };
-      }
-      builder.then = (resolve: (value: FakeResult) => unknown, reject?: (reason: unknown) => unknown) =>
-        Promise.resolve(result(query)).then(resolve, reject);
-      return builder;
-    },
+    from: (table: string) => chain({ table, steps: [] }),
+    /** A database function call is recorded as table `rpc:<name>` whose first step is ['rpc', args]. */
+    rpc: (name: string, args: unknown) => chain({ table: `rpc:${name}`, steps: [['rpc', args]] }),
   };
 
   return { supabase: client as unknown as Supabase, queries };

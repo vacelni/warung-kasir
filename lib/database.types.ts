@@ -145,6 +145,21 @@ isOneToOne: false
           Functions: {
             "create_transaction":
 { Args: { "p_change_amount": number,"p_code": string,"p_created_at": string,"p_id": string,"p_items": Json,"p_paid_amount": number,"p_total": number }; Returns: string
+                           },
+"sales_series":
+{ Args: { "p_bucket": string,"p_from": string,"p_to": string }; Returns: {
+              "bucket_start": string,"revenue": number,"transaction_count": number
+            }[]
+                           },
+"sales_summary":
+{ Args: { "p_from": string,"p_to": string }; Returns: {
+              "average_amount": number,"item_count": number,"revenue": number,"transaction_count": number
+            }[]
+                           },
+"top_products":
+{ Args: { "p_from": string,"p_limit"?: number,"p_to": string }; Returns: {
+              "product_id": string,"product_name": string,"quantity": number,"revenue": number
+            }[]
                            }
           }
           Enums: {

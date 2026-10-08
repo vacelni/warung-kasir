@@ -69,3 +69,18 @@ export function jakartaDayStart(instant: Date, dayOffset = 0): Date {
   const { year, month, day } = parseDateKey(jakartaDateKey(instant));
   return new Date(Date.UTC(year, month - 1, day) - JAKARTA_UTC_OFFSET_MS + dayOffset * DAY_MS);
 }
+
+/**
+ * The instant the Asia/Jakarta day named by `key` ("YYYYMMDD") begins (00:00 WIB). `dayOffset` moves by
+ * whole days. A date that does not exist (31 February) throws a RangeError.
+ */
+export function jakartaDayStartOfKey(key: string, dayOffset = 0): Date {
+  const { year, month, day } = parseDateKey(key);
+  return new Date(Date.UTC(year, month - 1, day) - JAKARTA_UTC_OFFSET_MS + dayOffset * DAY_MS);
+}
+
+/** "7 Okt": day and month of the Asia/Jakarta day an instant falls on, for compact chart labels. */
+export function formatJakartaDayMonth(instant: Date): string {
+  const { month, day } = parseDateKey(jakartaDateKey(instant));
+  return `${day} ${MONTH_NAMES[month - 1]}`;
+}
