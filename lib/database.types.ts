@@ -143,7 +143,9 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            [_ in never]: never
+            "create_transaction":
+{ Args: { "p_change_amount": number,"p_code": string,"p_created_at": string,"p_id": string,"p_items": Json,"p_paid_amount": number,"p_total": number }; Returns: string
+                           }
           }
           Enums: {
             [_ in never]: never

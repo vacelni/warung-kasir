@@ -5,9 +5,9 @@ import { useState } from 'react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
-import { Icon } from '@/components/ui/Icon';
 import { itemSubtotal } from '@/lib/cart';
 import { formatRupiah } from '@/lib/money';
+import { BackHeader } from './BackHeader';
 import { useCart } from './CartProvider';
 import { DockedBar } from './DockedBar';
 import { QuantityStepper } from './QuantityStepper';
@@ -24,16 +24,7 @@ export function CartList() {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <div className="mb-4 flex items-center gap-1">
-        <Link
-          href="/kasir"
-          aria-label="Kembali ke menu"
-          className="-ml-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-control text-foreground active:bg-subtle"
-        >
-          <Icon name="chevronLeft" />
-        </Link>
-        <h1 className="min-w-0 flex-1 text-page-title font-bold text-foreground">Pesanan</h1>
-      </div>
+      <BackHeader href="/kasir" backLabel="Kembali ke menu" title="Pesanan" />
 
       {cart.length === 0 ? (
         <EmptyState
@@ -100,10 +91,9 @@ export function CartList() {
                   <dd className="text-page-title font-bold text-foreground">{formatRupiah(total)}</dd>
                 </div>
               </dl>
-              {/* Payment is built in the next phase (checkout + outbox); there is no page to open yet. */}
-              <Button disabled className="w-full">
+              <Link href="/kasir/bayar" className={buttonClasses('primary', 'w-full')}>
                 LANJUT BAYAR
-              </Button>
+              </Link>
             </div>
           </DockedBar>
         </>

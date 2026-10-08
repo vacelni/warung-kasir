@@ -175,7 +175,14 @@ describe('CartList', () => {
 
     expect(screen.getByRole('heading', { name: 'Keranjang masih kosong.' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'PILIH MENU' }).getAttribute('href')).toBe('/kasir');
-    expect(screen.queryByRole('button', { name: 'LANJUT BAYAR' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'LANJUT BAYAR' })).toBeNull();
+  });
+
+  it('opens the payment screen from LANJUT BAYAR once the order has items', async () => {
+    await renderLoaded();
+    fireEvent.click(card('Es Teh'));
+
+    expect(screen.getByRole('link', { name: 'LANJUT BAYAR' }).getAttribute('href')).toBe('/kasir/bayar');
   });
 
   it('shows lines with subtotals and the total (AC-03)', async () => {

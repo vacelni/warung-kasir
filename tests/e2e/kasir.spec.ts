@@ -108,7 +108,7 @@ test('cashier builds an order: search, category, add, quantities, remove, empty 
   for (const name of ['Kurangi Nasi Goreng', 'Tambah Nasi Goreng', 'Hapus Nasi Goreng']) {
     await expectTouchTarget(main.getByRole('button', { name }), 48);
   }
-  await expectTouchTarget(main.getByRole('button', { name: 'LANJUT BAYAR' }), 48);
+  await expectTouchTarget(main.getByRole('link', { name: 'LANJUT BAYAR' }), 48);
 
   // Quantity: 2 → 3 → 2; never below 1.
   await main.getByRole('button', { name: 'Tambah Nasi Goreng' }).click();
