@@ -141,6 +141,9 @@ export function CheckoutSuccess() {
       <SyncLine entry={entry} syncing={syncing} />
 
       <div className="flex flex-col gap-3">
+        <Link href={`/riwayat/detail?id=${entry.id}`} className={buttonClasses('secondary', 'w-full')}>
+          LIHAT DETAIL
+        </Link>
         {newTransactionButton}
         {!syncing && entry.sync_status === 'pending' && (
           <Button variant="secondary" className="w-full" onClick={retrySync}>

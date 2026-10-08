@@ -13,7 +13,7 @@ import { useCatalog } from './CatalogProvider';
 import { CategoryTabs } from './CategoryTabs';
 import { categoriesWithProducts, filterProducts, type CatalogProduct } from './filter';
 import { PRODUCT_GRID_CLASSES, ProductGrid } from './ProductGrid';
-import { SearchBar } from './SearchBar';
+import { SearchBar } from '@/components/ui/SearchBar';
 
 /** The cashier screen: search, category tabs, product grid, and the docked order summary (UI_SPEC A.9). */
 export function ProductPicker() {

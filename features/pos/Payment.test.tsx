@@ -384,6 +384,15 @@ describe('CheckoutSuccess (UI_SPEC A.14)', () => {
     expect(mocks.syncOnce).not.toHaveBeenCalled();
   });
 
+  it('Lihat Detail opens this sale in the history detail by UUID (A.14)', async () => {
+    await saveSale();
+    renderSuccess();
+    await screen.findByRole('heading', { name: 'Transaksi Berhasil' });
+
+    const link = screen.getByRole('link', { name: 'LIHAT DETAIL' });
+    expect(link.getAttribute('href')).toBe(`/riwayat/detail?id=${ID}`);
+  });
+
   it('Transaksi Baru clears the cart and opens the menu', async () => {
     await saveSale();
     renderSuccess();

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { PagePlaceholder } from '@/components/shared/PagePlaceholder';
+import { HistoryList } from '@/features/transactions/HistoryList';
 
 export const metadata: Metadata = { title: 'Riwayat' };
 
 export default function Page() {
-  return <PagePlaceholder title="Riwayat" />;
+  return <HistoryList />;
 }

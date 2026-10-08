@@ -37,6 +37,14 @@ export async function getOutboxEntry(id: string): Promise<OutboxEntry | undefine
 }
 
 /**
+ * Every entry of one cashier, whatever its sync status. History reads this to show sales the
+ * server may not have yet; it never changes an entry.
+ */
+export async function listEntries(cashierId: string): Promise<OutboxEntry[]> {
+  return (await getDb()).getAllFromIndex('outbox', 'by_cashier', cashierId);
+}
+
+/**
  * Entries of one cashier that sync should send, oldest sale first. `syncing` is included:
  * an entry still marked syncing when a run starts was interrupted (tab closed, reload) and
  * is safe to resend because the RPC is idempotent. `failed` entries wait for the user.
