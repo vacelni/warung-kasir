@@ -20,7 +20,7 @@ test('a private page redirects to login without a session (AC-13)', async ({ pag
   await page.goto('/kasir');
 
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByText('Halaman kasir sedang disiapkan.')).toHaveCount(0);
+  await expect(page.getByRole('searchbox', { name: 'Cari menu' })).toHaveCount(0);
 });
 
 test('empty fields are validated inline', async ({ page }) => {

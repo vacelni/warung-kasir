@@ -9,6 +9,8 @@ const viewports = [
 
 const PORT = 3100;
 
+const MUTATION_SPECS = /\.mutation\.spec\.ts$/;
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -19,10 +21,24 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
   },
-  projects: viewports.map(({ name, width, height }) => ({
-    name,
-    use: { ...devices['Pixel 7'], viewport: { width, height } },
-  })),
+  projects: [
+    // Read-only specs, once per viewport, in parallel.
+    ...viewports.map(({ name, width, height }) => ({
+      name,
+      testIgnore: MUTATION_SPECS,
+      use: { ...devices['Pixel 7'], viewport: { width, height } },
+    })),
+    // Specs that change shared catalog data (create/deactivate products, categories). They run
+    // once, on a phone viewport, and only after every read-only project has finished, so a
+    // read-only test never sees a half-changed menu.
+    {
+      name: 'mutations',
+      testMatch: MUTATION_SPECS,
+      fullyParallel: false,
+      dependencies: viewports.map(({ name }) => name),
+      use: { ...devices['Pixel 7'], viewport: { width: 360, height: 800 } },
+    },
+  ],
   webServer: {
     command: `npm run dev -- --port ${PORT}`,
     url: `http://localhost:${PORT}`,

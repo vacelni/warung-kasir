@@ -102,7 +102,15 @@ const PATHS = {
     </>
   ),
   chevronRight: <path d="M9 5l7 7-7 7" />,
+  chevronLeft: <path d="M15 5l-7 7 7 7" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20.5 20.5 16 16" />
+    </>
+  ),
   plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
   moreVertical: (
     <>
       <circle cx="12" cy="5" r="1.6" fill="currentColor" stroke="none" />
