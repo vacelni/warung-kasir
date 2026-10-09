@@ -55,7 +55,7 @@ export function CatalogProvider({ children }: { children: React.ReactNode }) {
       return copy;
     });
 
-    fetchCatalog().then(
+    fetchCatalog(storeId).then(
       (catalog) => {
         if (!isCurrent()) return;
         fromServer = true;

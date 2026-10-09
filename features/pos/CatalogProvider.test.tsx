@@ -19,10 +19,12 @@ vi.mock('./api', () => ({ fetchCatalog: mocks.fetchCatalog }));
 const SERVER: Catalog = {
   categories: [{ id: 'makanan', name: 'Makanan' }],
   products: [{ id: 'nasi', name: 'Nasi Goreng', price: 16000, categoryId: 'makanan' }],
+  store: null,
 };
 const CACHED: Catalog = {
   categories: [{ id: 'makanan', name: 'Makanan' }],
   products: [{ id: 'nasi', name: 'Nasi Goreng', price: 15000, categoryId: 'makanan' }],
+  store: null,
 };
 const SAVED_AT = new Date('2026-10-07T03:00:00.000Z'); // 10:00 WIB
 

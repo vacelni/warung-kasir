@@ -29,6 +29,7 @@ const CATALOG: Catalog = {
     { id: 'mie', name: 'Mie Goreng', price: 12000, categoryId: 'makanan' },
     { id: 'teh', name: 'Es Teh', price: 5000, categoryId: 'minuman' },
   ],
+  store: null,
 };
 
 // jsdom does not implement the modal <dialog> methods.

@@ -24,6 +24,12 @@ export async function saveCatalog(userId: string, storeId: string, catalog: Cata
       store_id: storeId,
       products: catalog.products.map(({ id, name, price, categoryId }) => ({ id, name, price, categoryId })),
       categories: catalog.categories.map(({ id, name }) => ({ id, name })),
+      store: catalog.store && {
+        name: catalog.store.name,
+        address: catalog.store.address,
+        phone: catalog.store.phone,
+        receipt_note: catalog.store.receiptNote,
+      },
       saved_at: now.toISOString(),
     }),
     tx.done,
@@ -33,7 +39,10 @@ export async function saveCatalog(userId: string, storeId: string, catalog: Cata
 export async function readCatalog(userId: string, storeId: string): Promise<CachedCatalog | null> {
   const snapshot = await (await getDb()).get('catalog', userId);
   if (!snapshot || snapshot.store_id !== storeId) return null;
-  return { products: snapshot.products, categories: snapshot.categories, savedAt: snapshot.saved_at };
+  const store = snapshot.store
+    ? { name: snapshot.store.name, address: snapshot.store.address, phone: snapshot.store.phone, receiptNote: snapshot.store.receipt_note }
+    : null;
+  return { products: snapshot.products, categories: snapshot.categories, store, savedAt: snapshot.saved_at };
 }
 
 export async function clearCatalog(): Promise<void> {

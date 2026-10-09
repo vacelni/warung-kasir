@@ -15,11 +15,13 @@ const mocks = vi.hoisted(() => ({
   profile: null as unknown as Profile,
   searchParams: new URLSearchParams(),
   getTransaction: vi.fn(),
+  loadReceiptStore: vi.fn(),
 }));
 
 vi.mock('@/features/auth/AuthProvider', () => ({ useProfile: () => mocks.profile }));
 vi.mock('next/navigation', () => ({ useSearchParams: () => mocks.searchParams }));
 vi.mock('./api', () => ({ getTransaction: mocks.getTransaction }));
+vi.mock('./receiptStore', () => ({ loadReceiptStore: mocks.loadReceiptStore }));
 
 const ID = testSnapshot().id;
 
@@ -312,5 +314,39 @@ describe('TransactionDetail — sale time check (SEC-06)', () => {
     await screen.findByText('TRX-20261007-3F9A2C');
     expect(screen.queryByText('Diterima server')).toBeNull();
     expect(screen.queryByText(/Cek waktu/)).toBeNull();
+  });
+});
+
+describe('TransactionDetail — simple receipt view (UI_SPEC A.15)', () => {
+  beforeEach(() => {
+    mocks.getTransaction.mockResolvedValue(serverDetail());
+  });
+
+  it('LIHAT STRUK shows the store, the sale, the items and the totals; TUTUP STRUK goes back', async () => {
+    mocks.loadReceiptStore.mockResolvedValue({ name: 'Warung Bu Sari', address: 'Jl. Contoh No. 10', phone: null, receiptNote: 'Terima kasih :)' });
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: 'LIHAT STRUK' }));
+
+    const receipt = await screen.findByRole('region', { name: 'Struk' });
+    expect(mocks.loadReceiptStore).toHaveBeenCalledWith(cashier.id, cashier.storeId);
+    const text = receipt.textContent ?? '';
+    for (const part of ['Warung Bu Sari', 'Jl. Contoh No. 10', 'TRX-20261007-3F9A2C', '07/10/2026 10:32 WIB', 'Andi', 'Rp40.000', 'Rp50.000', 'Rp10.000', 'Terima kasih :)']) {
+      expect(text).toContain(part);
+    }
+    expect(text).not.toContain('null');
+
+    fireEvent.click(screen.getByRole('button', { name: 'TUTUP STRUK' }));
+    expect(screen.queryByRole('region', { name: 'Struk' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'LIHAT STRUK' })).toBeTruthy();
+  });
+
+  it('without store details the receipt still shows the sale', async () => {
+    mocks.loadReceiptStore.mockResolvedValue(null);
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: 'LIHAT STRUK' }));
+
+    const receipt = await screen.findByRole('region', { name: 'Struk' });
+    expect(receipt.querySelector('header')).toBeNull();
+    expect(receipt.textContent).toContain('Rp40.000');
   });
 });

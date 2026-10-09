@@ -12,7 +12,7 @@ These engineering records track execution only and never override the specs.
 | Branch | `feature/warungkasir-launch-readiness` (from `a0ddd47`, Phase 11 checkpoint) |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
 | Current phase | 13-prep — release preparation (12R complete) |
-| Current sub-step | 13P.2 — simple receipt view (spec written in UI_SPEC A.15) |
+| Current sub-step | 13P.3 — debt and test holes (PagePlaceholder, RouteAccess, category validation, header sync indicator) |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records
@@ -31,7 +31,6 @@ Every PRD §43 Must Have and AC-01..AC-15 is implemented and has tests (coverage
 
 ## Not yet implemented / open
 
-- PRD §44 Should Have chosen for launch by the user: simple receipt view; history custom date range.
 - Release preparation (runbook completion, production checklist) and launch-audit preparation.
 
 ## Open product decisions

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchCatalog } from './api';
 
-const mocks = vi.hoisted(() => ({ listActiveProducts: vi.fn(), listCategories: vi.fn(), listProducts: vi.fn() }));
+const mocks = vi.hoisted(() => ({ listActiveProducts: vi.fn(), listCategories: vi.fn(), listProducts: vi.fn(), getStoreProfile: vi.fn() }));
+const STORE = { name: 'Warung Bu Sari', address: null, phone: null, receiptNote: null };
 
 vi.mock('@/features/products/api', () => ({
   listActiveProducts: mocks.listActiveProducts,
@@ -9,11 +10,14 @@ vi.mock('@/features/products/api', () => ({
   listProducts: mocks.listProducts,
 }));
 vi.mock('@/features/categories/api', () => ({ listCategories: mocks.listCategories }));
+vi.mock('@/features/settings/api', () => ({ getStoreProfile: mocks.getStoreProfile }));
 
 beforeEach(() => {
   mocks.listActiveProducts.mockReset();
   mocks.listCategories.mockReset();
   mocks.listProducts.mockReset();
+  mocks.getStoreProfile.mockReset();
+  mocks.getStoreProfile.mockResolvedValue(STORE);
 });
 
 describe('fetchCatalog', () => {
@@ -23,7 +27,8 @@ describe('fetchCatalog', () => {
     mocks.listActiveProducts.mockResolvedValue(products);
     mocks.listCategories.mockResolvedValue(categories);
 
-    await expect(fetchCatalog()).resolves.toEqual({ products, categories });
+    await expect(fetchCatalog('store-a')).resolves.toEqual({ products, categories, store: STORE });
+    expect(mocks.getStoreProfile).toHaveBeenCalledWith('store-a');
     expect(mocks.listProducts).not.toHaveBeenCalled();
   });
 
@@ -31,6 +36,15 @@ describe('fetchCatalog', () => {
     mocks.listActiveProducts.mockResolvedValue([]);
     mocks.listCategories.mockRejectedValue(new Error('offline'));
 
-    await expect(fetchCatalog()).rejects.toThrow('offline');
+    await expect(fetchCatalog('store-a')).rejects.toThrow('offline');
+  });
+
+  it('still returns the menu when only the store details cannot be read (they are for the receipt)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.listActiveProducts.mockResolvedValue([]);
+    mocks.listCategories.mockResolvedValue([]);
+    mocks.getStoreProfile.mockRejectedValue(new Error('offline'));
+
+    await expect(fetchCatalog('store-a')).resolves.toEqual({ products: [], categories: [], store: null });
   });
 });

@@ -376,6 +376,19 @@ test('INFO-3: owner resets the password while a sale is pending — it is kept, 
   expect(rows[0]!.cashier_id).toBe(cashierId);
 });
 
+test('receipt view offline: the store header comes from the catalog saved on the device (UI_SPEC A.15)', async ({ page, context }) => {
+  await startOnline(page, KASIR1.email); // the catalog, with the store details, is saved here
+  await context.setOffline(true);
+  const id = await sell(page, ['Es Teh']);
+
+  await page.goto(`/riwayat/detail?id=${id}`);
+  await page.getByRole('button', { name: 'LIHAT STRUK' }).click();
+  const receipt = page.getByRole('region', { name: 'Struk' });
+  await expect(receipt).toContainText('Warung Makan Bu Sari');
+  await expect(receipt).toContainText('Es Teh');
+  await expect(receipt).toContainText('Terima kasih :)');
+});
+
 /**
  * The owner switches a cashier's account on or off in Karyawan (admin-cashier Edge Function). Done
  * on the dev server's origin: the function's CORS allows only the configured app origins.

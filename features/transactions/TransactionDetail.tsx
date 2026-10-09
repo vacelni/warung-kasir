@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Alert } from '@/components/ui/Alert';
@@ -11,9 +12,12 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { BackHeader } from '@/features/pos/BackHeader';
 import { formatRupiah, type Money } from '@/lib/money';
 import { useProfile } from '@/features/auth/AuthProvider';
+import type { StoreProfile } from '@/features/settings/validation';
 import { SALE_TIME_FLAG_REASONS, saleTimeFlag } from '@/lib/saleTimeFlag';
 import { formatJakartaDate, formatJakartaTime } from '@/lib/time';
 import type { TransactionDetail as TransactionDetailData } from './model';
+import { loadReceiptStore } from './receiptStore';
+import { ReceiptView } from './ReceiptView';
 import { StatusBadges } from './StatusBadges';
 import { useTransactionDetail } from './useTransactionDetail';
 
@@ -74,12 +78,32 @@ export function TransactionDetail() {
   );
 }
 
+type ReceiptState = { status: 'closed' } | { status: 'loading' } | { status: 'open'; store: StoreProfile | null };
+
 function DetailBody({ detail }: { detail: TransactionDetailData }) {
   const soldAt = new Date(detail.createdAt);
+  const profile = useProfile();
   // SEC-06: only the owner checks sale times; nothing changes for the cashier.
-  const isOwner = useProfile().role === 'owner';
+  const isOwner = profile.role === 'owner';
   const timeFlag = isOwner ? saleTimeFlag(detail.createdAt, detail.syncedAt) : null;
   const receivedAt = isOwner && detail.syncedAt ? new Date(detail.syncedAt) : null;
+  const [receipt, setReceipt] = useState<ReceiptState>({ status: 'closed' });
+
+  async function openReceipt() {
+    setReceipt({ status: 'loading' });
+    setReceipt({ status: 'open', store: await loadReceiptStore(profile.id, profile.storeId) });
+  }
+
+  if (receipt.status === 'open') {
+    return (
+      <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
+        <ReceiptView detail={detail} store={receipt.store} />
+        <Button variant="secondary" className="w-full" onClick={() => setReceipt({ status: 'closed' })}>
+          TUTUP STRUK
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
@@ -133,6 +157,10 @@ function DetailBody({ detail }: { detail: TransactionDetailData }) {
           )}
         </dl>
       </Card>
+
+      <Button variant="secondary" className="w-full" onClick={() => void openReceipt()} disabled={receipt.status === 'loading'}>
+        {receipt.status === 'loading' ? 'MEMUAT…' : 'LIHAT STRUK'}
+      </Button>
     </div>
   );
 }

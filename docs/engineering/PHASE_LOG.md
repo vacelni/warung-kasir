@@ -368,3 +368,21 @@ Tests: `filters.test.ts` +3 (inclusive WIB days, boundaries, messages; dateRange
 to the selection object; `'custom'` is now a known preset), `HistoryList.test.tsx` +2 (+1
 expectation: option list), E2E `history.spec.ts` +1. Results: related unit 409 passed; E2E on
 `360x800`, `static`, `chromium` 3 passed; lint, typecheck pass.
+
+## 13P.2 — Simple receipt view (PRD §44, 2026-10-09)
+
+Spec first: UI_SPEC A.15 "Struk sederhana". Found: TECHNICAL_SPEC C.10 says the offline catalog
+snapshot includes store information, but it held only products and categories → the catalog
+fetch now also reads the store (a failure there does not fail the menu), and the snapshot keeps an
+optional `store` (no IndexedDB version bump: object stores are schemaless; older snapshots read as
+null). `features/transactions/receiptStore.ts` (server first, bounded to 3 s; device copy when the
+browser reports no network or the server does not answer), `ReceiptView.tsx`, LIHAT STRUK / TUTUP
+STRUK on the detail page. No printing.
+
+Found while testing: offline, a supabase-js read retries for several seconds before failing, so the
+first version kept the button on "MEMUAT…" > 5 s → offline uses the device copy at once.
+
+Tests: `receiptStore.test.ts` 5, `TransactionDetail.test.tsx` +2, `catalogCache.test.ts` +1,
+`pos/api.test.ts` +1 (menu still loads without store details), fixtures gained `store`.
+E2E: `history.spec.ts` receipt (`360x800`, `static`) 2 passed; `sync.offline.spec.ts` receipt offline
+(`offline`, `offline-edge`) 2 passed. Unit (transactions) 124 passed; lint, typecheck pass.

@@ -34,6 +34,11 @@ export type CatalogSnapshot = {
   store_id: string;
   products: Array<{ id: string; name: string; price: number; categoryId: string }>;
   categories: Array<{ id: string; name: string }>;
+  /**
+   * The store's name, address, phone and receipt note, for the receipt view offline (TECHNICAL_SPEC
+   * C.10, UI_SPEC A.15). Absent in snapshots saved before it was added; null when it could not be read.
+   */
+  store?: { name: string; address: string | null; phone: string | null; receipt_note: string | null } | null;
   /** ISO 8601 time it was read from the server. */
   saved_at: string;
 };

@@ -317,7 +317,7 @@ describe('offline identity (decision D5)', () => {
 describe('signOut and device data (TECHNICAL_SPEC C.10, C.12)', () => {
   it('clears the cached profile and catalog, and keeps every outbox entry', async () => {
     await saveIdentity({ id: USER_ID, storeId: 'store-a', name: 'Andi', role: 'cashier' }, new Date());
-    await saveCatalog(USER_ID, 'store-a', { products: [], categories: [] }, new Date());
+    await saveCatalog(USER_ID, 'store-a', { products: [], categories: [], store: null }, new Date());
     await enqueueTransaction(testSnapshot({ id: 'pending-sale', cashier_id: USER_ID }));
     await enqueueTransaction(testSnapshot({ id: 'other-cashier', cashier_id: 'someone-else' }));
 

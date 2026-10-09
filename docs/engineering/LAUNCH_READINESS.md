@@ -12,7 +12,7 @@ Status: ✅ met · ❌ not met · ⏳ in progress · ⬜ not yet checked.
 | AC-01..AC-15 | LOCAL — unit, pgTAP, Playwright | ✅ (re-confirm at release candidate) |
 | Transactions consistent and idempotent, incl. concurrent same-id | LOCAL — pgTAP 03; `create-transaction-race.test.ts` | ✅ |
 | Offline sales survive logout, failures, reloads, reconnects | LOCAL — offline projects incl. SEC-01 and INFO-3 E2E | ✅ |
-| Should Have chosen for launch: receipt view, history custom range | LOCAL — 13-prep | ⬜ |
+| Should Have chosen for launch: receipt view, history custom range | LOCAL — unit + E2E (13P.1, 13P.2) | ✅ |
 
 ## Security
 

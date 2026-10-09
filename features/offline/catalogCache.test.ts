@@ -15,6 +15,7 @@ const CATALOG = {
     { id: 'makanan', name: 'Makanan' },
     { id: 'minuman', name: 'Minuman' },
   ],
+  store: { name: 'Warung Bu Sari', address: 'Jl. Contoh No. 10', phone: null, receiptNote: 'Terima kasih :)' },
 };
 const SAVED_AT = new Date('2026-10-07T03:00:00.000Z');
 
@@ -49,10 +50,18 @@ describe('catalog cache (TECHNICAL_SPEC C.10)', () => {
 
   it('keeps one snapshot per device: a new user’s save replaces the previous one', async () => {
     await saveCatalog('cashier-1', 'store-a', CATALOG, SAVED_AT);
-    await saveCatalog('cashier-2', 'store-a', { products: [], categories: [] }, SAVED_AT);
+    await saveCatalog('cashier-2', 'store-a', { products: [], categories: [], store: null }, SAVED_AT);
 
     expect(await readCatalog('cashier-1', 'store-a')).toBeNull();
     expect(await readCatalog('cashier-2', 'store-a')).toMatchObject({ products: [] });
+  });
+
+  it('keeps the store details for the receipt view offline; a snapshot without them reads as null', async () => {
+    await saveCatalog('cashier-1', 'store-a', CATALOG, SAVED_AT);
+    expect((await readCatalog('cashier-1', 'store-a'))?.store).toEqual(CATALOG.store);
+
+    await saveCatalog('cashier-1', 'store-a', { ...CATALOG, store: null }, SAVED_AT);
+    expect((await readCatalog('cashier-1', 'store-a'))?.store).toBeNull();
   });
 
   it('logout clears the catalog but never the outbox', async () => {

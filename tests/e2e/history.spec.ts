@@ -342,3 +342,19 @@ test('custom date range: whole WIB days of the seed, an unusable range is explai
   await expect(page.getByRole('main').getByRole('link', { name: /TRX-/ })).toHaveCount(0);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
+
+test('receipt view: LIHAT STRUK shows the store header, the sale and the receipt note (UI_SPEC A.15)', async ({ page }) => {
+  await login(page, CASHIER);
+  await page.goto(`/riwayat/detail?id=${ANDI_SALE}`);
+  await page.getByRole('button', { name: 'LIHAT STRUK' }).click();
+
+  const receipt = page.getByRole('region', { name: 'Struk' });
+  await expect(receipt).toContainText('Warung Makan Bu Sari');
+  await expect(receipt).toContainText('Jl. Contoh No. 10, Semarang');
+  await expect(receipt).toContainText('TRX-20261007-3F9A2C');
+  await expect(receipt).toContainText('Terima kasih :)');
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+
+  await page.getByRole('button', { name: 'TUTUP STRUK' }).click();
+  await expect(receipt).toHaveCount(0);
+});
