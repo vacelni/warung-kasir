@@ -146,6 +146,12 @@ export function putOutboxEntry(page: Page, entry: Entry) {
   );
 }
 
+/**
+ * `expires_at` of an access token that expired long ago (1970-01-01T00:00:01Z). Not 0: auth-js
+ * treats a falsy `expires_at` as "never expires" and would keep using the token (SEC-09).
+ */
+export const EXPIRED_AT = 1;
+
 /** Edits the stored Supabase session (to simulate an expired access token, or a revoked refresh token). */
 export function editStoredSession(page: Page, patch: { expires_at?: number; refresh_token?: string }) {
   return page.evaluate((change) => {

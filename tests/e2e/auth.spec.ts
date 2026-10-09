@@ -97,7 +97,7 @@ test('a session the server rejects sends the user back to login', async ({ page,
     const key = Object.keys(localStorage).find((k) => /^sb-.+-auth-token$/.test(k));
     if (!key) throw new Error('no stored Supabase session');
     const session = JSON.parse(localStorage.getItem(key) ?? '{}');
-    localStorage.setItem(key, JSON.stringify({ ...session, expires_at: 0, refresh_token: 'revoked-token' }));
+    localStorage.setItem(key, JSON.stringify({ ...session, expires_at: 1, refresh_token: 'revoked-token' })); // 1, not 0: a falsy expires_at never expires
   });
   await page.reload();
 

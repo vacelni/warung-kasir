@@ -15,7 +15,7 @@ Status values: OPEN, IN PROGRESS, FIXED (tests prove it), DOCUMENTED (accepted/d
 | SEC-06 | Low | Sale date is the device clock; no anomaly signal | Yes — RPC accepts any `created_at` | OPEN | — | — |
 | SEC-07 | Low | Unbounded items per sale and name lengths | Yes — no CHECK on lengths, no item-count limit | OPEN | — | — |
 | SEC-08 | Low | Default privileges grant EXECUTE on new `public` functions (and sequences) to anon | Yes — `20261008000200_rls.sql` revokes table defaults only | OPEN | — | — |
-| SEC-09 | Low | Tests that hid or could hide defects (mocked signOut, broad console allow-lists, loose rejected-session assertion) | Yes | OPEN | — | — |
+| SEC-09 | Low | Tests that hid or could hide defects (mocked signOut, broad console allow-lists, loose rejected-session assertion) | Yes; plus a new one: `expires_at: 0` never simulated an expired token | IN PROGRESS | 12R.1: CSP guard + `guard.spec.ts`; narrowed allow-lists; strict rejected-session test; `EXPIRED_AT`. Real-client signOut test lands with SEC-01 (12R.2) | — |
 | INFO-1 | Info | Shared-device residue: outbox and cached identity readable with devtools | By design | OPEN (document) | — | — |
 | INFO-2 | Info | 5 High advisories in dev tooling (`braces` via `eslint-config-next`); production deps 0 | Yes — baseline `npm audit`: 5 high; `--omit=dev`: 0 | OPEN | — | — |
 | INFO-3 | Info | Session behavior after password reset / deactivation / reactivation unverified | — | OPEN (measure first) | — | — |

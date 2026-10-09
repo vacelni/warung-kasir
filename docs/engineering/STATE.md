@@ -12,7 +12,7 @@ These engineering records track execution only and never override the specs.
 | Branch | `feature/warungkasir-launch-readiness` (from `a0ddd47`, Phase 11 checkpoint) |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
 | Current phase | 12R — security remediation (see `ROADMAP.md`) |
-| Current sub-step | 12R.0 — records + baseline |
+| Current sub-step | 12R.2 — SEC-01 offline logout (12R.0, 12R.1 done) |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records

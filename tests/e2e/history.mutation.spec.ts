@@ -141,7 +141,7 @@ test('a sale the server has not received shows as pending at once, then becomes 
   page,
   allowConsoleError,
 }) => {
-  allowConsoleError(FAILED_REQUEST, /Could not|failed|refused|Sync pass/i); // the failure this test causes on purpose
+  allowConsoleError(FAILED_REQUEST); // the response this test drops on purpose
   await login(page, CASHIER);
 
   // First sale: the server never answers (the response is lost), so it stays on the device.

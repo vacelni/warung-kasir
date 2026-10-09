@@ -1,6 +1,7 @@
 import { chromium, expect, FAILED_REQUEST, test, type Browser, type Page } from './support/test';
 import {
   editStoredSession,
+  EXPIRED_AT,
   KASIR1,
   KASIR2,
   login,
@@ -242,7 +243,7 @@ test('G.9 offline session: token expires offline → stays in the app and sells;
   await startOnline(page, KASIR1.email);
   await context.setOffline(true);
   // The access token has expired and cannot be refreshed: the device is offline.
-  await editStoredSession(page, { expires_at: 0 });
+  await editStoredSession(page, { expires_at: EXPIRED_AT });
   await page.reload();
 
   await expect(page).toHaveURL(/\/kasir$/);
@@ -264,7 +265,8 @@ test('G.9 server rejects the session on reconnect → login; the pending sale st
   await context.setOffline(true);
   const id = await sell(page, ['Es Jeruk']);
   // Expired access token and a refresh token the server no longer accepts.
-  await editStoredSession(page, { expires_at: 0, refresh_token: 'revoked-refresh-token' });
+  await editStoredSession(page, { expires_at: EXPIRED_AT, refresh_token: 'revoked-refresh-token' });
+  const rpcCalls = recordRpcCalls(context);
 
   await context.setOffline(false);
   await page.reload();
@@ -272,14 +274,14 @@ test('G.9 server rejects the session on reconnect → login; the pending sale st
   // The rejection may land before the reload (the online event already tried to sync) or during
   // it; either way the session is gone and the user is on the login page (D5).
   await expect(page).toHaveURL(/\/login(\?alasan=expired)?$/);
-  // Kept on the device and still to be sent. If the reload cut a pass short the entry can still read
-  // 'syncing' for a moment; the sync picks both states up again (listSyncable), so both are fine.
-  const kept = await outboxEntry(page, id);
-  expect(kept?.cashier_id).toBe(KASIR1.id);
-  expect(['pending', 'syncing']).toContain(kept?.sync_status);
+  // Kept on the device, untouched: a sync pass checks the session before it marks or sends
+  // anything (features/offline/sync.ts), so a rejected session never sends the sale (SEC-09).
+  expect(await outboxEntry(page, id)).toMatchObject({ cashier_id: KASIR1.id, sync_status: 'pending', attempts: 0 });
+  expect(rpcCalls).toEqual([]);
 
   await login(page, KASIR1.email);
   await expect.poll(async () => (await outboxEntry(page, id))?.sync_status, { timeout: 20_000 }).toBe('synced');
+  expect(rpcCalls).toEqual([id]);
   expect(await serverTransactions(context, id)).toHaveLength(1);
 });
 

@@ -24,7 +24,11 @@ import { expect, FAILED_REQUEST, test, type Page } from './support/test';
 // kasir1.a and creates one cashier account; run `npx supabase db reset` afterwards. Runs in the
 // serial "mutations" project, on the dev server (the admin function accepts that origin).
 
-const EXPECTED_ERRORS = [FAILED_REQUEST, /Could not|failed|refused|Sync pass|Export of|Backup failed/i];
+const EXPECTED_ERRORS = [
+  FAILED_REQUEST,
+  /^Could not update the store:/,
+  /^admin-cashier (reset_password|set_active): (refused|request failed):/,
+];
 
 test.beforeEach(({ allowConsoleError }) => allowConsoleError(...EXPECTED_ERRORS));
 

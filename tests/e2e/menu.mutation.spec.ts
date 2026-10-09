@@ -23,7 +23,8 @@ const sheet = (page: Page) => page.getByRole('dialog');
 
 test.describe('owner management flow', () => {
   test('categories and products: create, edit, deactivate, reactivate, protected delete — persisted', async ({ page, allowConsoleError }) => {
-  allowConsoleError(FAILED_REQUEST, /Could not|failed|refused|Sync pass/i); // the failure this test causes on purpose
+  // The duplicate category name this test submits on purpose (409, unique violation).
+  allowConsoleError(FAILED_REQUEST, /^Could not create the category:/);
     const tag = Date.now().toString(36);
     const category = `E2E ${tag}`;
     const renamed = `E2E Baru ${tag}`;

@@ -68,3 +68,38 @@ CLI not linked):
   read-only projects, so one failure there blocks them. The full matrix is re-run after 12R.1.
 - **144 skipped:** every skip restricts a spec to certain viewports/browsers (coverage audit); none
   skips a feature.
+
+## 12R.1 — SEC-09 test harness (2026-10-09)
+
+Changes:
+- `tests/e2e/support/test.ts`: CSP guard. Every watched context reports each
+  `securitypolicyviolation` event through an exposed binding, and console messages matching
+  `CSP_MESSAGE` are recorded **before** any allow-list is consulted. `E2E_LOG_ALLOWED=1` prints the
+  allowed messages a test hits.
+- New `tests/e2e/guard.spec.ts`: proves the guard fires (strict-CSP page via `page.route`, every
+  console error allowed → one violation + one CSP console message still recorded).
+- Allow-lists narrowed from evidence (`E2E_LOG_ALLOWED=1` run of the `mutations` project):
+  admin → `FAILED_REQUEST` + `admin-cashier create: refused: email_taken`; checkout lost response
+  and history pending sale → `FAILED_REQUEST` only; menu → `FAILED_REQUEST` + `Could not create the
+  category:`; faults file → `FAILED_REQUEST`, `Could not update the store:`,
+  `admin-cashier (reset_password|set_active): (refused|request failed):`. The broad
+  `/Could not|failed|refused|Sync pass/i` is gone from all of them.
+- `history.spec.ts:233`: order read is now polled (pre-existing flake, see baseline).
+- **New defect found and fixed (test-only):** the E2E "expired access token" simulation wrote
+  `expires_at: 0`. auth-js treats a falsy `expires_at` as "not expired" (`GoTrueClient.js:2540`),
+  so `auth.spec.ts` (rejected session), `sync.offline.spec.ts` G.9 offline session and G.9
+  rejected session ran with a still-valid token. They passed because the auto-refresh ticker
+  happened to reject the revoked refresh token first; in one of two repeated runs the sync pass
+  used the valid token instead. Now `EXPIRED_AT = 1` (a real past time).
+- G.9 rejected-session test restored to the strict assertion and tightened: the outbox entry is
+  `pending` with `attempts: 0`, **zero** RPC requests before re-login, exactly `[id]` after, one
+  server row.
+
+Results:
+| Command | Result |
+|---|---|
+| `playwright test guard.spec.ts --project=360x800` | 1 passed (first run failed on the test's own expectation of the message text: Chromium says "Executing inline script violates … Content Security Policy"; the guard caught it) |
+| G.9 tests, `offline` + `offline-edge`, `--repeat-each=3` | 12 passed (before the `EXPIRED_AT` fix: 7 failed / 1 passed with `--repeat-each=4`) |
+| `--project=mutations,mutations-edge,static-mutations --no-deps` | 57 passed |
+| auth + guard + history specs on `360x800`, `390x844`, `static` | 27 passed |
+| lint, typecheck | pass |

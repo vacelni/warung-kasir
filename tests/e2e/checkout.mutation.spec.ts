@@ -167,7 +167,7 @@ test('golden path: pay with a double tap, one sale saved and synced, Transaksi B
 });
 
 test('lost response: the server saved the sale, the retry sends the same UUID and gets exists (G.11)', async ({ page, allowConsoleError }) => {
-  allowConsoleError(FAILED_REQUEST, /Could not|failed|refused|Sync pass/i); // the failure this test causes on purpose
+  allowConsoleError(FAILED_REQUEST); // the response this test drops on purpose
   await login(page, CASHIER);
   await openPayment(page, ['Es Jeruk']);
 

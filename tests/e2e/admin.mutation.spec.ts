@@ -50,7 +50,8 @@ async function openActions(page: Page, name: string, action: string) {
 }
 
 test('employee golden flow: create, edit name, reset password, deactivate, reactivate (US-06)', async ({ page, browser, allowConsoleError }) => {
-  allowConsoleError(FAILED_REQUEST, /Could not|failed|refused|Sync pass/i); // the failure this test causes on purpose
+  // The duplicate email this test submits on purpose: a 409, which the app reports as email_taken.
+  allowConsoleError(FAILED_REQUEST, /^admin-cashier create: refused: email_taken$/);
   const tag = Date.now().toString(36);
   const name = `Kasir E2E ${tag}`;
   const renamed = `Kasir E2E Baru ${tag}`;

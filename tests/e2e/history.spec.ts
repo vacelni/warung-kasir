@@ -230,7 +230,8 @@ test('owner: sees every cashier of the store, newest or oldest first, never anot
     (await page.getByRole('main').getByRole('link', { name: /^TRX-20261007-/ }).allTextContents()).map(
       (text) => /TRX-20261007-(\w{6})/.exec(text)?.[1],
     );
-  expect(await order()).toEqual(['8C41E0', '3F9A2C']);
+  // Polled: the cards above may still be those of the unfiltered list while the search loads.
+  await expect.poll(order).toEqual(['8C41E0', '3F9A2C']);
   await page.getByRole('combobox', { name: 'Urutan' }).selectOption('oldest');
   await expect.poll(order).toEqual(['3F9A2C', '8C41E0']);
 
