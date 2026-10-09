@@ -29,6 +29,10 @@ afterEach(() => {
   syncManager.setCashier(null);
 });
 
+// The panel reads IndexedDB first; under a fully parallel run that can take longer than the
+// default 1 s of findBy*.
+const IDB_WAIT = { timeout: 5_000 };
+
 describe('describeSync', () => {
   it('everything synced', () => {
     expect(describeSync({ pending: 0, failed: 0, running: false }, true)).toMatchObject({
@@ -80,7 +84,7 @@ describe('SyncStatusPanel (Lainnya, UI_SPEC A.24)', () => {
     act(() => syncManager.setCashier('cashier-1'));
     render(<SyncStatusPanel />);
 
-    expect(await screen.findByText('1 gagal sinkron')).toBeTruthy();
+    expect(await screen.findByText('1 gagal sinkron', undefined, IDB_WAIT)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'COBA LAGI' }));
 
     await waitFor(() => expect(mocks.syncOnce).toHaveBeenCalledWith('cashier-1'));
@@ -91,7 +95,7 @@ describe('SyncStatusPanel (Lainnya, UI_SPEC A.24)', () => {
     act(() => syncManager.setCashier('cashier-1'));
     render(<SyncStatusPanel />);
 
-    expect(await screen.findByText('Semua tersinkron')).toBeTruthy();
+    expect(await screen.findByText('Semua tersinkron', undefined, IDB_WAIT)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'COBA LAGI' })).toBeNull();
   });
 
@@ -101,7 +105,7 @@ describe('SyncStatusPanel (Lainnya, UI_SPEC A.24)', () => {
     act(() => syncManager.setCashier('cashier-1'));
     render(<SyncStatusPanel />);
 
-    expect(await screen.findByText('1 belum tersinkron')).toBeTruthy();
+    expect(await screen.findByText('1 belum tersinkron', undefined, IDB_WAIT)).toBeTruthy();
     expect(screen.getByText('Perangkat sedang offline.')).toBeTruthy();
   });
 });
@@ -121,7 +125,7 @@ describe('SyncIndicator (header)', () => {
     act(() => syncManager.setCashier('cashier-1'));
     render(<SyncIndicator />);
 
-    expect(await screen.findByText('1 belum tersinkron')).toBeTruthy();
+    expect(await screen.findByText('1 belum tersinkron', undefined, IDB_WAIT)).toBeTruthy();
     expect(screen.getByText('Offline')).toBeTruthy();
 
     setOnline(true);

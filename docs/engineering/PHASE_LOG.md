@@ -394,3 +394,5 @@ E2E: `history.spec.ts` receipt (`360x800`, `static`) 2 passed; `sync.offline.spe
   owner allowed) and `features/categories/validation.test.ts`.
 - Header sync indicator: already asserted in E2E (`sync.offline.spec.ts` banner "1 belum
   tersinkron" and "1 gagal sinkron"); the coverage audit's "no E2E assertion" was inaccurate. No change.
+
+- Flake found in the full unit run: `SyncStatus.test.tsx` "says so when everything is synced" (findBy default 1 s vs an IndexedDB read under a fully parallel run; passed alone 3/3). The four IndexedDB-backed `findBy*` in that file now wait up to 5 s; assertions unchanged. Note: the 13P.3 commit was made by a command chain that did not stop on that failure; the full suite was re-run twice after the fix.
