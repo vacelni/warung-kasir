@@ -196,9 +196,20 @@ Owner tidak dapat menonaktifkan akunnya sendiri.
 Menonaktifkan Cashier:
 
 profiles.is_active = false (berlaku langsung di RLS);
-Auth user di-ban agar refresh token tidak dapat dipakai.
+Auth user di-ban agar refresh token tidak dapat dipakai;
+seluruh session Cashier diakhiri (public.revoke_user_sessions, hanya service_role), sehingga session lama tidak hidup kembali saat Cashier diaktifkan lagi.
 
-Transaksi offline dari Cashier yang sudah dinonaktifkan akan ditolak saat sinkronisasi, ditandai failed, dan tetap tersimpan (tidak dihapus).
+Reset password Cashier juga mengakhiri seluruh session Cashier tersebut.
+
+Session yang sudah diakhiri (INFO-3, diuji di tests/functions/session-lifecycle.test.ts dan pgTAP 02/03):
+
+RLS helper dan create_transaction mensyaratkan session pada access token (claim session_id) masih ada di auth.sessions; access token lama langsung ditolak (data kosong, RPC WK003), tidak menunggu token kedaluwarsa;
+refresh token lama ditolak; Edge Function menjawab 401;
+setelah diaktifkan kembali, session lama tetap mati; Cashier harus login ulang.
+
+Transaksi offline dari Cashier yang sudah dinonaktifkan akan ditolak saat sinkronisasi (WK002), ditandai failed, dan tetap tersimpan (tidak dihapus).
+
+Transaksi pending dari session yang diakhiri (mis. password di-reset) ditolak dengan WK003, tetap pending, perangkat diarahkan ke login, dan transaksi tersinkron setelah Cashier yang sama login kembali.
 
 E.11 Edge Functions
 
@@ -228,7 +239,9 @@ E.13 Development Safeguards
 
 git push;
 supabase db push, supabase db reset --linked, supabase functions deploy, supabase secrets set;
+supabase config push, supabase db query --linked, supabase db dump --linked, supabase link, supabase secrets unset, supabase functions delete, supabase migration repair, supabase projects delete (INFO-5);
 wrangler deploy, wrangler pages deploy;
+wrangler secret put/delete, wrangler pages secret put, wrangler pages project delete, wrangler delete (INFO-5);
 
 (termasuk varian npx, untuk tool Bash dan PowerShell).
 

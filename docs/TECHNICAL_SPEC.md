@@ -295,7 +295,8 @@ RPC menggunakan ON CONFLICT (id) DO NOTHING dan mengembalikan created atau exist
 Klasifikasi error:
 
 sementara (network, timeout, 5xx, session belum dapat diperbarui) → tetap pending, retry dengan backoff;
-permanen (validasi RPC ditolak, akun tidak aktif) → failed, tetap disimpan, tampil di UI dengan aksi Coba Lagi.
+permanen (validasi RPC ditolak, akun tidak aktif) → failed, tetap disimpan, tampil di UI dengan aksi Coba Lagi;
+session diakhiri server (WK003: password di-reset, akun diaktifkan kembali) → tetap pending; jika refresh juga ditolak server, session diakhiri di perangkat dan user diarahkan ke login (D5); transaksi tersinkron setelah login kembali.
 
 Transaksi pending/syncing/failed tidak pernah dihapus otomatis. Entri synced boleh dipangkas setelah konfirmasi server; periode retensi ditetapkan pada Phase 10.
 

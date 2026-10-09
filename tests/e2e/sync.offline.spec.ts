@@ -1,5 +1,7 @@
 import { chromium, expect, FAILED_REQUEST, test, type Browser, type Page } from './support/test';
 import {
+  asOwnerAdmin,
+  waitForServiceWorkerControl,
   editStoredSession,
   EXPIRED_AT,
   KASIR1,
@@ -343,6 +345,35 @@ test('SEC-01: "Tetap keluar" offline with an expired token keeps the sale, which
   await expect.poll(async () => (await outboxEntry(page, id))?.sync_status, { timeout: 20_000 }).toBe('synced');
   expect(rpcCalls).toEqual([id]);
   expect(await serverTransactions(context, id)).toHaveLength(1);
+});
+
+test('INFO-3: owner resets the password while a sale is pending — it is kept, refused for the old session, and syncs once after the new login', async ({ page, context, request }) => {
+  const email = `e2e-reset-${Date.now().toString(36)}@warungkasir.test`;
+  const created = await asOwnerAdmin(request, { action: 'create', name: 'Kasir Reset', email, password: 'awal-12345' });
+  const cashierId = (created.cashier as { id: string }).id;
+
+  await login(page, email, 'awal-12345');
+  await waitForServiceWorkerControl(page);
+  await expect(productCard(page, 'Nasi Goreng')).toBeVisible();
+  await context.setOffline(true);
+  const id = await sell(page, ['Es Teh']);
+
+  // Offline, the owner resets this cashier's password: the device's session is ended on the server.
+  await asOwnerAdmin(request, { action: 'reset_password', cashier_id: cashierId, password: 'baru-12345' });
+
+  const rpcCalls = recordRpcCalls(context);
+  await context.setOffline(false);
+  // The sync is refused (WK003); the session check then fails and the app goes to login (D5).
+  await expect(page).toHaveURL(/\/login(\?alasan=expired)?$/, { timeout: 20_000 });
+  expect(await outboxEntry(page, id)).toMatchObject({ cashier_id: cashierId, sync_status: 'pending' });
+  expect(await serverTransactions(context, id)).toHaveLength(0);
+  expect(rpcCalls.length).toBeLessThanOrEqual(1); // at most the one refused attempt
+
+  await login(page, email, 'baru-12345');
+  await expect.poll(async () => (await outboxEntry(page, id))?.sync_status, { timeout: 20_000 }).toBe('synced');
+  const rows = await serverTransactions(context, id);
+  expect(rows).toHaveLength(1);
+  expect(rows[0]!.cashier_id).toBe(cashierId);
 });
 
 /**

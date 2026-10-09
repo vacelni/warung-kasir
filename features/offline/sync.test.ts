@@ -1,3 +1,4 @@
+import { AuthApiError, AuthRetryableFetchError } from '@supabase/supabase-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
 import { testSnapshot } from '@/lib/test-support/transactions';
@@ -9,11 +10,15 @@ type RpcResponse = { data: unknown; error: { code?: string; message: string } | 
 const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   getSession: vi.fn(),
+  refreshSession: vi.fn(),
+  signOut: vi.fn(),
 }));
+
+vi.mock('@/features/auth/api', () => ({ signOut: mocks.signOut }));
 
 vi.mock('@/lib/supabase', () => ({
   getSupabase: () => ({
-    auth: { getSession: mocks.getSession },
+    auth: { getSession: mocks.getSession, refreshSession: mocks.refreshSession },
     rpc: (name: string, args: unknown) => ({
       abortSignal: () => mocks.rpc(name, args),
     }),
@@ -42,6 +47,8 @@ beforeEach(async () => {
   await resetIndexedDb();
   mocks.rpc.mockReset();
   mocks.getSession.mockReset();
+  mocks.refreshSession.mockReset();
+  mocks.signOut.mockReset();
   signedInAs(CASHIER);
 });
 
@@ -124,6 +131,32 @@ describe('syncOnce', () => {
     await syncOnce(CASHIER);
 
     expect(await getOutboxEntry(ID)).toMatchObject({ sync_status: 'pending', last_error: 'boom' });
+  });
+
+  it('a session the server ended (WK003): keeps the sale pending, and signs out when the refresh is refused too', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.refreshSession.mockResolvedValue({ data: { session: null }, error: new AuthApiError('Invalid Refresh Token: Refresh Token Not Found', 400, 'refresh_token_not_found') });
+    await enqueueTransaction(testSnapshot());
+    await enqueueTransaction(testSnapshot({ id: 'second-sale' }));
+    respond({ data: null, error: { code: 'WK003', message: 'create_transaction: the session has ended; sign in again' } });
+
+    await expect(syncOnce(CASHIER)).resolves.toEqual({ synced: 0, pending: 2, failed: 0 });
+    expect(await getOutboxEntry(ID)).toMatchObject({ sync_status: 'pending', attempts: 1 });
+    expect(await getOutboxEntry('second-sale')).toMatchObject({ sync_status: 'pending', attempts: 0 }); // not sent
+    expect(mocks.rpc).toHaveBeenCalledOnce();
+    expect(mocks.refreshSession).toHaveBeenCalledOnce();
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+  });
+
+  it('WK003 while the refresh cannot reach the server: stays pending and signed in (retried later)', async () => {
+    mocks.refreshSession.mockResolvedValue({ data: { session: null }, error: new AuthRetryableFetchError('Failed to fetch', 0) });
+    await enqueueTransaction(testSnapshot());
+    respond({ data: null, error: { code: 'WK003', message: 'create_transaction: the session has ended; sign in again' } });
+
+    await syncOnce(CASHIER);
+
+    expect(await getOutboxEntry(ID)).toMatchObject({ sync_status: 'pending' });
+    expect(mocks.signOut).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -220,6 +253,7 @@ describe('classifySyncError', () => {
   it.each([
     ['WK001', 'permanent'],
     ['WK002', 'permanent'],
+    ['WK003', 'session'],
     ['22003', 'permanent'],
     ['23514', 'permanent'],
     ['', 'transient'],

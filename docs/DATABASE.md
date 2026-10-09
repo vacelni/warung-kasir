@@ -189,7 +189,9 @@ unit_price TIDAK dibandingkan dengan harga produk saat ini. Penjualan offline ya
 
 Penulisan menggunakan INSERT … ON CONFLICT (id) DO NOTHING; jika konflik terjadi karena race, baris yang sudah di-commit dibaca ulang: kembalikan 'exists' hanya jika store_id dan cashier_id-nya sama dengan caller, selain itu tolak dengan WK001 seperti pengecekan awal (SEC-05). Diuji dengan dua sesi database yang benar-benar bersamaan (tests/functions/create-transaction-race.test.ts).
 
-Penolakan validasi menggunakan kode error yang dapat dibedakan sehingga client dapat menandai transaksi sebagai failed (permanen) dan bukan pending (sementara).
+Penolakan validasi menggunakan kode error yang dapat dibedakan sehingga client dapat menandai transaksi sebagai failed (permanen) dan bukan pending (sementara): WK001 transaksi tidak valid, WK002 caller tanpa profil aktif (failed), WK003 session caller sudah diakhiri di server (tetap pending; login ulang). WK003 diperiksa setelah profil aktif.
+
+Session (INFO-3): private.current_store_id(), private.current_role(), dan create_transaction mensyaratkan private.session_is_live(): claim session_id pada JWT merujuk baris auth.sessions milik caller yang belum kedaluwarsa. public.revoke_user_sessions(user_id) menghapus seluruh session user (refresh token ikut terhapus); EXECUTE hanya untuk service_role.
 
 D.10 Timezone & Dates
 

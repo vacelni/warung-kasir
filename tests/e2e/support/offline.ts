@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { expect, type BrowserContext, type Page } from './test';
+import { expect, type APIRequestContext, type BrowserContext, type Page } from './test';
 
 export { EXPIRED_AT, editStoredSession, storedAccessToken } from './session';
 
@@ -29,10 +29,10 @@ export function supabaseEnv(): { url: string; key: string } {
   return { url, key };
 }
 
-export async function login(page: Page, email: string) {
+export async function login(page: Page, email: string, password = PASSWORD) {
   await page.goto('/login');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+  await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'MASUK' }).click();
   await expect(page).toHaveURL(/\/kasir$/);
 }
@@ -158,6 +158,23 @@ export type ServerTransaction = {
 };
 
 /** Reads transactions back from the database through RLS with an owner session (a separate login). */
+/**
+ * Calls the admin-cashier Edge Function as the owner of store A, from the dev server's origin (the
+ * one in the local ALLOWED_ORIGINS). Uses a request context of its own, so it works while a test's
+ * browser context is offline.
+ */
+export async function asOwnerAdmin(request: APIRequestContext, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const { url, key } = supabaseEnv();
+  const login = await request.post(`${url}/auth/v1/token?grant_type=password`, { headers: { apikey: key }, data: { email: OWNER.email, password: PASSWORD } });
+  const { access_token } = (await login.json()) as { access_token: string };
+  const response = await request.post(`${url}/functions/v1/admin-cashier`, {
+    headers: { apikey: key, Authorization: `Bearer ${access_token}`, Origin: 'http://localhost:3100' },
+    data: body,
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+  return (await response.json()) as Record<string, unknown>;
+}
+
 export async function serverTransactions(context: BrowserContext, id: string): Promise<ServerTransaction[]> {
   const { url, key } = supabaseEnv();
   const login = await context.request.post(`${url}/auth/v1/token?grant_type=password`, {

@@ -1,3 +1,5 @@
+import { isAuthRetryableFetchError } from '@supabase/supabase-js';
+import { signOut } from '@/features/auth/api';
 import { getSupabase } from '@/lib/supabase';
 import { listSyncable, markNotSynced, markSynced, markSyncing, type OutboxEntry } from './outbox';
 
@@ -6,7 +8,7 @@ const RPC_TIMEOUT_MS = 15_000;
 
 type RpcError = { code?: string; message: string };
 
-export type SyncErrorKind = 'transient' | 'permanent';
+export type SyncErrorKind = 'transient' | 'permanent' | 'session';
 
 /**
  * Error mapping (TECHNICAL_SPEC C.12, SECURITY E.10). Decides whether resending can ever help.
@@ -24,9 +26,28 @@ export type SyncErrorKind = 'transient' | 'permanent';
  *    the session and the app goes to login (D5), so this can never loop forever;
  *  - 42501 (no grant): the request went out without a session;
  *  - anything unexpected (e.g. PGRST202 while a migration is being deployed).
+ *
+ * Session → stays `pending`; the session is checked with the server at once:
+ *  - WK003: the access token's session was ended on the server (password reset, deactivation,
+ *    INFO-3) while the token itself has not expired yet. If the server refuses a refresh as well,
+ *    the session is over: it is ended on this device and the app goes to login (D5); the sale
+ *    syncs after the cashier signs in again.
  */
 export function classifySyncError(error: RpcError): SyncErrorKind {
+  if (error.code === 'WK003') return 'session';
   return /^(WK|22|23)/.test(error.code ?? '') ? 'permanent' : 'transient';
+}
+
+/**
+ * After WK003: asks the server for a new session. A network failure changes nothing (the sale stays
+ * pending, sync retries). A refused refresh means the session is over; auth-js keeps a session whose
+ * access token has not expired yet, so it is ended here (SIGNED_OUT → login, outbox untouched).
+ */
+async function confirmSessionWithServer(): Promise<void> {
+  const { error } = await getSupabase().auth.refreshSession();
+  if (!error || isAuthRetryableFetchError(error)) return;
+  console.warn('The server ended this session; signing in again is required:', error.message);
+  await signOut();
 }
 
 type SendResult = { ok: true } | { ok: false; error: RpcError };
@@ -94,14 +115,16 @@ async function runSync(cashierId: string): Promise<SyncResult> {
       result.pending -= 1;
       continue;
     }
-    if (classifySyncError(sent.error) === 'permanent') {
+    const kind = classifySyncError(sent.error);
+    if (kind === 'permanent') {
       await markNotSynced(entry.id, 'failed', errorText(sent.error));
       result.failed += 1;
       result.pending -= 1;
       continue;
     }
-    // Transient: the rest would most likely fail the same way. Everything left stays pending.
+    // Transient or session: the rest would most likely fail the same way. Everything left stays pending.
     await markNotSynced(entry.id, 'pending', errorText(sent.error));
+    if (kind === 'session') await confirmSessionWithServer();
     break;
   }
   return result;

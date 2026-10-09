@@ -218,3 +218,54 @@ Gate results on the tree with 12R.4–12R.6 and 12R.12:
 | `supabase db advisors --local` | No issues found |
 | layout + kasir + checkout + headers on `360x800`, `static`, `static-desktop` | 59 passed, 13 skipped |
 | menu + kasir mutations (`mutations`) | 2 passed |
+
+## 12R.7 — INFO-3 session lifecycle (2026-10-09)
+
+Measurement first (scratch script against the local stack, GoTrue v2.197.0; old tokens of a fresh
+cashier after each owner action):
+
+| Action | Old refresh | `/auth/v1/user` | Table read (RLS) | `create_transaction` | Edge Function auth | Sessions in DB |
+|---|---|---|---|---|---|---|
+| none | 200 | 200 | rows | created | 403 (not owner) | 1 |
+| password reset | 400 not_found | 403 | **rows** | **created** | **500** | 0 |
+| deactivate | 400 user_banned | 403 | 0 rows | WK002 | 401 | **1** |
+| deactivate → reactivate | **200** | **200** | **rows** | **created** | 403 (passes auth) | 1 |
+
+Fix (migration `20261009120300_session_revocation.sql`, Edge Function, sync): live-session check in
+both RLS helpers and `create_transaction` (WK003, after the active-profile check so a deactivated
+cashier keeps WK002/failed per SECURITY E.10); `public.revoke_user_sessions` (service_role only)
+called on deactivation and reset; `AuthSessionMissingError` → 401; client: WK003 keeps the sale
+pending, and when the refresh is refused too the app ends the session itself (auth-js keeps a
+session whose access token has not expired after a refused refresh) → login → sync after re-login.
+
+Found while testing: pgTAP `tests.act_as` claims had no `session_id` → every file now opens a real
+`auth.sessions` row (`tests.open_session`); the race test also uses live sessions and now fails fast
+instead of hanging when a session exits early.
+
+Results:
+| Check | Result |
+|---|---|
+| `tests/functions/session-lifecycle.test.ts` | 4 passed (reset / deactivate / reactivate all refused everywhere; new logins work) |
+| `npm run test:db` | 365 passed (+13) |
+| `npm run test:functions` | 21 passed |
+| function unit tests | 51 passed |
+| `features/offline` + `features/auth` unit | 191 passed |
+| INFO-3 E2E (`offline`, `offline-edge`) | 2 passed |
+| `offline` + `offline-edge` (all) | 33 passed, 1 skipped |
+| `mutations`, `mutations-edge`, `static-mutations` | 57 passed |
+
+## 12R.8 — INFO-4 Edge Function body limit (2026-10-09)
+
+`readBodyLimited` refuses a declared Content-Length over 4 KiB before reading and stops a stream at
+the limit; same `invalid_request`/`body` answer as before. Caller lookup through the service client
+kept: it reads only the profile whose id is the verified token's subject. Logging: only error code
+and message (checked `logFailure`). Tests: handler unit +4, real HTTP +1.
+
+## 12R.9 — INFO-5/6 operational safeguards (2026-10-09)
+
+`.claude/settings.json`: +52 ask rules (Bash/PowerShell × plain/npx) for `supabase config push`,
+`db query --linked`, `db dump --linked`, `link`, `secrets unset`, `functions delete`,
+`migration repair`, `projects delete`, `wrangler secret put/delete`, `pages secret put`,
+`pages project delete`, `wrangler delete`; SECURITY E.13 updated. INFO-6: GoTrue-written hashes
+start `$2a$10$`, `gen_salt('bf')` gives `$2a$06$` (local catalog) → RUNBOOK uses `gen_salt('bf', 10)`
+and points to `revoke_user_sessions`.

@@ -12,7 +12,7 @@ These engineering records track execution only and never override the specs.
 | Branch | `feature/warungkasir-launch-readiness` (from `a0ddd47`, Phase 11 checkpoint) |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
 | Current phase | 12R — security remediation (see `ROADMAP.md`) |
-| Current sub-step | 12R.7 — INFO-3 session lifecycle (12R.0–12R.6 and 12R.12 done) |
+| Current sub-step | 12R.10 — SEC-04 password/email change settings (12R.0–12R.9, 12R.12 done) |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records

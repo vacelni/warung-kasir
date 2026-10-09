@@ -119,12 +119,15 @@ There is no email-based password recovery in the MVP (SECURITY E.8). Recovery is
 
    ```sql
    update auth.users
-   set encrypted_password = extensions.crypt('<new password>', extensions.gen_salt('bf')),
+   set encrypted_password = extensions.crypt('<new password>', extensions.gen_salt('bf', 10)),
        updated_at = now()
    where email = '<owner email>';
    ```
 
-4. If the old password may be known to someone else, also end existing sessions (Dashboard user actions, or `delete from auth.sessions where user_id = '<USER_UID>';`).
+   Cost 10 matches what GoTrue itself writes (hashes start with `$2a$10$`; checked locally on
+   GoTrue v2.197.0). Plain `gen_salt('bf')` gives cost 6, a weaker hash (INFO-6).
+
+4. If the old password may be known to someone else, also end existing sessions (Dashboard user actions, or `select public.revoke_user_sessions('<USER_UID>');`). Since INFO-3 an ended session also loses database access at once.
 5. Sign in with the new password to confirm.
 
 Cashier passwords are reset by the owner in the app (Phase 9), not here.

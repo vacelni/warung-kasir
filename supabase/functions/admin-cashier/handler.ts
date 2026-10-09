@@ -40,6 +40,11 @@ export interface AdminApi {
   /** Bans (true) or unbans (false) the Auth user, so a deactivated cashier cannot refresh a session. */
   setBanned(userId: string, banned: boolean): Promise<boolean>;
   setPassword(userId: string, password: string): Promise<boolean>;
+  /**
+   * Ends every session of the user (their refresh tokens go too). The database also requires a
+   * live session for every request (INFO-3), so an old access token stops working at once.
+   */
+  revokeSessions(userId: string): Promise<boolean>;
 }
 
 export type HandlerDeps = { admin: AdminApi; allowedOrigins: ReadonlySet<string> };
@@ -116,6 +121,38 @@ export function parseCommand(body: unknown): ParseResult {
   }
 }
 
+/**
+ * The request body as text, or null when it is larger than `maxBytes` (INFO-4). A declared
+ * Content-Length is checked before anything is read, and reading stops as soon as the limit is
+ * passed, so an oversized body is never held in memory.
+ */
+export async function readBodyLimited(request: Request, maxBytes: number): Promise<string | null> {
+  const declared = Number(request.headers.get('Content-Length') ?? 0);
+  if (!Number.isFinite(declared) || declared > maxBytes) return null;
+  if (!request.body) return '';
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 function bearerToken(header: string | null): string | null {
   const match = /^Bearer\s+(\S+)$/i.exec(header ?? '');
   return match?.[1] ?? null;
@@ -158,8 +195,8 @@ export async function handleRequest(request: Request, deps: HandlerDeps): Promis
     if (!caller || !caller.isActive || caller.role !== 'owner') return fail('forbidden');
 
     // Only now is the body read.
-    const text = await request.text();
-    if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) return fail('invalid_request', { field: 'body' });
+    const text = await readBodyLimited(request, MAX_BODY_BYTES);
+    if (text === null) return fail('invalid_request', { field: 'body' });
     let body: unknown;
     try {
       body = JSON.parse(text);
@@ -182,6 +219,8 @@ export async function handleRequest(request: Request, deps: HandlerDeps): Promis
     if (command.action === 'set_active') return await setActive(deps.admin, target, command.isActive, json, fail);
 
     if (!(await deps.admin.setPassword(target.id, command.password))) return fail('server_error');
+    // Sessions opened with the old password end (GoTrue does it too; this does not rely on it).
+    if (!(await deps.admin.revokeSessions(target.id))) return fail('server_error');
     return json(200, { cashier: { id: target.id } });
   } catch (error) {
     // Only the message: never the request body (passwords) or headers (tokens).
@@ -230,8 +269,9 @@ async function createCashier(
 }
 
 /**
- * Deactivate: profile first (RLS denies everything at once), then the Auth ban (no new sessions).
- * If the ban fails the profile stays inactive (fail closed) and a retry finishes the job.
+ * Deactivate: profile first (RLS denies everything at once), then the Auth ban (no new sessions),
+ * then the existing sessions end, so they cannot come back after a later reactivation (INFO-3).
+ * If a later step fails the profile stays inactive (fail closed) and a retry finishes the job.
  *
  * Activate: unban first, then the profile. If the profile update fails the ban is restored, so
  * the account is never left half active.
@@ -240,6 +280,7 @@ async function setActive(admin: AdminApi, target: ProfileRecord, isActive: boole
   if (!isActive) {
     if (!(await admin.setProfileActive(target.id, false))) return fail('server_error');
     if (!(await admin.setBanned(target.id, true))) return fail('server_error');
+    if (!(await admin.revokeSessions(target.id))) return fail('server_error');
   } else {
     if (!(await admin.setBanned(target.id, false))) return fail('server_error');
     if (!(await admin.setProfileActive(target.id, true))) {

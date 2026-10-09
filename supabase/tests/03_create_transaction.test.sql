@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(77);
+select plan(79);
 
 -- ---------------------------------------------------------------------------
 -- Helpers (rolled back with the test transaction)
@@ -17,15 +17,30 @@ grant usage on schema tests to anon, authenticated;
 -- default (not even through PUBLIC), so grant the helpers of this schema explicitly.
 alter default privileges in schema tests grant execute on functions to anon, authenticated;
 
+-- Opens a session the way GoTrue does at sign-in: authorization also requires the token's
+-- session to exist (INFO-3). SECURITY DEFINER so it works while already acting as a client.
+create function tests.open_session(user_id uuid)
+returns uuid
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into auth.sessions (id, user_id, created_at, updated_at)
+  values (gen_random_uuid(), user_id, now(), now())
+  returning id
+$$;
+
 create function tests.act_as(user_id uuid)
 returns void
 language plpgsql
 as $$
+declare
+  v_session uuid := tests.open_session(user_id);
 begin
   perform set_config('role', 'authenticated', true);
   perform set_config(
     'request.jwt.claims',
-    json_build_object('sub', user_id, 'role', 'authenticated')::text,
+    json_build_object('sub', user_id, 'role', 'authenticated', 'session_id', v_session)::text,
     true
   );
 end;
@@ -635,6 +650,24 @@ select throws_ok(
   'a product_name of 121 characters is rejected with WK001'
 );
 reset role;
+
+-- ===========================================================================
+-- INFO-3: a token whose session ended gets WK003 (sign in again; the sale stays pending)
+-- ===========================================================================
+select tests.act_as('a2000000-0000-4000-9000-000000000001');
+reset role;
+delete from auth.sessions where id = (current_setting('request.jwt.claims', true)::jsonb ->> 'session_id')::uuid;
+select set_config('role', 'authenticated', true);
+select throws_ok(
+  $$ select tests.sell('e1000000-0000-4000-9000-000000000801', tests.golden(), 40000, 50000, 10000) $$,
+  'WK003', 'create_transaction: the session has ended; sign in again',
+  'an ended session is rejected with WK003'
+);
+reset role;
+select is_empty(
+  $$ select 1 from public.transactions where id = 'e1000000-0000-4000-9000-000000000801' $$,
+  'nothing was written for the ended session'
+);
 
 select * from finish();
 rollback;

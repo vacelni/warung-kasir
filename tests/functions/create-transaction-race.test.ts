@@ -59,8 +59,15 @@ function session(script: string): { done: Promise<Session>; printed: (marker: st
   child.stdin.end(script);
   return {
     done,
+    // Fails instead of hanging when the session ends without printing the marker.
     printed: (marker) =>
-      new Promise<void>((resolve) => (output.includes(marker) ? resolve() : waiters.push({ marker, resolve }))),
+      Promise.race([
+        new Promise<void>((resolve) => (output.includes(marker) ? resolve() : waiters.push({ marker, resolve }))),
+        done.then((result) => {
+          if (!result.output.includes(marker)) throw new Error(`session ended without ${marker}:
+${result.output}`);
+        }),
+      ]),
   };
 }
 
@@ -94,7 +101,7 @@ function callAs(cashierId: string, id: string, holdSeconds: number): string {
   ]);
   return `
 begin;
-select set_config('request.jwt.claims', '${JSON.stringify({ sub: cashierId, role: 'authenticated' })}', true);
+select set_config('request.jwt.claims', '${JSON.stringify({ sub: cashierId, role: 'authenticated', session_id: sessionOf[cashierId] })}', true);
 set local role authenticated;
 select 'calling=' || extract(epoch from clock_timestamp());
 select 'result=' || public.create_transaction(
@@ -108,6 +115,8 @@ commit;
 }
 
 const created: string[] = [];
+/** One live auth session per cashier: authorization requires the token's session to exist (INFO-3). */
+const sessionOf: Record<string, string> = { [KASIR1_A]: randomUUID(), [KASIR2_A]: randomUUID() };
 
 beforeAll(() => {
   const host = new URL(localSupabaseUrl()).hostname;
@@ -117,9 +126,15 @@ beforeAll(() => {
   ).split('|');
   product = { id, name, price: Number(price) };
   expect(product.price).toBeGreaterThan(0);
+  sql(
+    `insert into auth.sessions (id, user_id, created_at, updated_at) values ${Object.entries(sessionOf)
+      .map(([user, session]) => `('${session}', '${user}', now(), now())`)
+      .join(', ')};`,
+  );
 });
 
 afterAll(() => {
+  sql(`delete from auth.sessions where id in (${Object.values(sessionOf).map((id) => `'${id}'`).join(', ')});`);
   if (created.length === 0) return;
   const ids = created.map((id) => `'${id}'`).join(', ');
   sql(`delete from public.transaction_items where transaction_id in (${ids}); delete from public.transactions where id in (${ids});`);

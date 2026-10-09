@@ -4,7 +4,7 @@
  * The secret key is read from the function's environment only (SECURITY E.7): it never leaves
  * this process, is never logged, and never appears in a response.
  */
-import { createClient, isAuthApiError } from 'npm:@supabase/supabase-js@2.117.3';
+import { createClient, isAuthApiError, isAuthSessionMissingError } from 'npm:@supabase/supabase-js@2.117.3';
 import { parseAllowedOrigins } from '../_shared/cors.ts';
 import { handleRequest, type AdminApi, type ProfileRecord } from './handler.ts';
 
@@ -45,9 +45,10 @@ const admin: AdminApi = {
   async verifyToken(token) {
     const { data, error } = await supabase.auth.getUser(token);
     if (error) {
-      // An API error is Auth refusing the token (invalid, expired, user gone); anything else is
-      // an outage and must not look like "unauthorized".
-      if (isAuthApiError(error)) return null;
+      // An API error is Auth refusing the token (invalid, expired, user gone), and a missing
+      // session is a token whose session was ended (logout, password reset, deactivation); anything
+      // else is an outage and must not look like "unauthorized".
+      if (isAuthApiError(error) || isAuthSessionMissingError(error)) return null;
       throw new Error(`Auth could not verify the token: ${error.message}`);
     }
     return data.user.id;
@@ -109,6 +110,12 @@ const admin: AdminApi = {
   async setPassword(userId, password) {
     const { error } = await supabase.auth.admin.updateUserById(userId, { password });
     if (error) logFailure('set password', error);
+    return !error;
+  },
+
+  async revokeSessions(userId) {
+    const { error } = await supabase.rpc('revoke_user_sessions', { p_user_id: userId });
+    if (error) logFailure('revoke sessions', error);
     return !error;
   },
 };

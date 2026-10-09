@@ -22,15 +22,30 @@ grant usage on schema tests to anon, authenticated;
 -- default (not even through PUBLIC), so grant the helpers of this schema explicitly.
 alter default privileges in schema tests grant execute on functions to anon, authenticated;
 
+-- Opens a session the way GoTrue does at sign-in: authorization also requires the token's
+-- session to exist (INFO-3). SECURITY DEFINER so it works while already acting as a client.
+create function tests.open_session(user_id uuid)
+returns uuid
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into auth.sessions (id, user_id, created_at, updated_at)
+  values (gen_random_uuid(), user_id, now(), now())
+  returning id
+$$;
+
 create function tests.act_as(user_id uuid)
 returns void
 language plpgsql
 as $$
+declare
+  v_session uuid := tests.open_session(user_id);
 begin
   perform set_config('role', 'authenticated', true);
   perform set_config(
     'request.jwt.claims',
-    json_build_object('sub', user_id, 'role', 'authenticated')::text,
+    json_build_object('sub', user_id, 'role', 'authenticated', 'session_id', v_session)::text,
     true
   );
 end;

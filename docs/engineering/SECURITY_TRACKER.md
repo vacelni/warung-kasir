@@ -18,14 +18,15 @@ Status values: OPEN, IN PROGRESS, FIXED (tests prove it), DOCUMENTED (accepted/d
 | SEC-09 | Low | Tests that hid or could hide defects (mocked signOut, broad console allow-lists, loose rejected-session assertion) | Yes; plus a new one: `expires_at: 0` never simulated an expired token | FIXED | 12R.1: CSP guard + `guard.spec.ts`; narrowed allow-lists; strict rejected-session test; `EXPIRED_AT`. Real-client signOut test in `signOut.test.ts` (12R.2); misleading mocked test renamed | — |
 | INFO-1 | Info | Shared-device residue: outbox and cached identity readable with devtools | By design | OPEN (document) | — | — |
 | INFO-2 | Info | 5 High advisories in dev tooling (`braces` via `eslint-config-next`); production deps 0 | Yes — baseline `npm audit`: 5 high; `--omit=dev`: 0 | OPEN | — | — |
-| INFO-3 | Info | Session behavior after password reset / deactivation / reactivation unverified | — | OPEN (measure first) | — | — |
-| INFO-4 | Info | Edge Function reads whole body before size check | To verify | OPEN | — | — |
-| INFO-5 | Info | Missing ask-rules for some sensitive CLI commands | Yes — `.claude/settings.json` | OPEN | — | — |
-| INFO-6 | Info | Runbook owner-recovery SQL uses `gen_salt('bf')` (cost 6) | To verify against GoTrue | OPEN | — | — |
+| INFO-3 | Info→**Medium (confirmed)** | Session behavior after password reset / deactivation / reactivation | Measured on GoTrue v2.197.0: reset deletes sessions but the old access JWT kept RLS + RPC access until expiry; deactivation keeps sessions, so after reactivation the old refresh + access tokens worked again; Edge Function answered 500 for an ended session | FIXED | Migration `20261009120300` (`private.session_is_live()` in both RLS helpers and `create_transaction` → WK003; `public.revoke_user_sessions`, service_role only); Edge Function revokes on deactivate + reset, maps `AuthSessionMissingError` → 401; client keeps WK003 sales pending and ends the session when the refresh is refused too. Tests: `tests/functions/session-lifecycle.test.ts` (4 scenarios × refresh, /user, table read, RPC, Edge Function), pgTAP 02 (+11) / 03 (+2), handler unit tests (+3), `sync.test.ts` (+3), E2E `sync.offline.spec.ts` INFO-3 (Chromium + Edge) | Authorization now depends on `postgres` reading/deleting `auth.sessions`; verify those privileges on the hosted project (Phase 13). One extra indexed lookup per statement |
+| INFO-4 | Info | Edge Function read the whole body before the size check | Yes (`request.text()` then length check; owners only) | FIXED | `readBodyLimited` (Content-Length first, bounded stream). Handler unit +4, `tests/functions/admin-cashier.test.ts` +1. Service-client caller lookup kept (reads only the verified subject's profile) | Platform-level request limits are Supabase's |
+| INFO-5 | Info | Missing ask-rules for some sensitive CLI commands | Yes | FIXED | `.claude/settings.json` +52 rules; SECURITY E.13 | Guardrail only: reordered arguments are not matched (E.13) |
+| INFO-6 | Info | Runbook owner-recovery SQL used `gen_salt('bf')` (cost 6) | Yes — GoTrue writes `$2a$10$`, `gen_salt('bf')` gives `$2a$06$` | FIXED | RUNBOOK uses `gen_salt('bf', 10)` | — |
 
 ## Deployment-dependent checks (cannot be verified locally)
 
 Carried into `LAUNCH_READINESS.md` and the runbook: hosted Auth settings, API keys, Edge Function
 secrets and `ALLOWED_ORIGINS`, `verify_jwt` with the project's signing keys, Data API surface,
 hosted advisors, production CSP origin, HSTS/domain, Cloudflare `_headers` behavior, preview
-isolation, seed exclusion.
+isolation, seed exclusion, and `postgres` SELECT/DELETE on `auth.sessions` (INFO-3; read-only check:
+`select has_table_privilege('postgres','auth.sessions','select'), has_table_privilege('postgres','auth.sessions','delete');`).

@@ -314,3 +314,13 @@ describe('H13: compensation when the profile cannot be created', () => {
     expect((await signIn(address, 'kasir-baru-123')).token).toBeNull();
   });
 });
+
+describe('request body limit over real HTTP (INFO-4)', () => {
+  it('an owner request with an oversized body is refused and creates nothing', async () => {
+    const address = email('oversized');
+    const response = await callFunction(createBody('x'.repeat(9000), address), ownerA);
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'invalid_request', field: 'body' });
+    expect(authUserCount(address)).toBe(0);
+  });
+});

@@ -7,7 +7,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(113);
+select plan(124);
 
 -- ---------------------------------------------------------------------------
 -- Impersonation helpers (rolled back with the test transaction)
@@ -18,15 +18,30 @@ grant usage on schema tests to anon, authenticated;
 -- default (not even through PUBLIC), so grant the helpers of this schema explicitly.
 alter default privileges in schema tests grant execute on functions to anon, authenticated;
 
+-- Opens a session the way GoTrue does at sign-in: authorization also requires the token's
+-- session to exist (INFO-3). SECURITY DEFINER so it works while already acting as a client.
+create function tests.open_session(user_id uuid)
+returns uuid
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into auth.sessions (id, user_id, created_at, updated_at)
+  values (gen_random_uuid(), user_id, now(), now())
+  returning id
+$$;
+
 create function tests.act_as(user_id uuid)
 returns void
 language plpgsql
 as $$
+declare
+  v_session uuid := tests.open_session(user_id);
 begin
   perform set_config('role', 'authenticated', true);
   perform set_config(
     'request.jwt.claims',
-    json_build_object('sub', user_id, 'role', 'authenticated')::text,
+    json_build_object('sub', user_id, 'role', 'authenticated', 'session_id', v_session)::text,
     true
   );
 end;
@@ -575,6 +590,62 @@ select is_empty('select 1 from public.transactions', 'a just-deactivated cashier
 select is_empty('select 1 from public.products', 'a just-deactivated cashier loses access to products');
 
 reset role;
+
+-- ===========================================================================
+-- INFO-3: authorization requires the token's session to still exist
+-- ===========================================================================
+-- Ends the session named in the current JWT, as a password reset or revoke_user_sessions does.
+create function tests.end_current_session()
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  delete from auth.sessions where id = (current_setting('request.jwt.claims', true)::jsonb ->> 'session_id')::uuid
+$$;
+
+select tests.act_as('a2000000-0000-4000-9000-000000000001');
+select isnt_empty($$ select 1 from public.products $$, 'with a live session, cashier A1 reads the menu');
+select tests.end_current_session();
+select is_empty($$ select 1 from public.products $$, 'the same token after its session ended reads nothing');
+select is_empty($$ select 1 from public.stores $$, '... not even the store');
+select is((select private.current_store_id()), null, 'current_store_id is null for an ended session');
+reset role;
+
+-- A token without a session id (GoTrue always sets one) is denied as well.
+select set_config('role', 'authenticated', true);
+select set_config('request.jwt.claims', '{"sub":"a2000000-0000-4000-9000-000000000001","role":"authenticated"}', true);
+select is_empty($$ select 1 from public.products $$, 'a token without session_id reads nothing');
+reset role;
+
+-- Deactivate, end the session, reactivate: the old token stays dead.
+select tests.act_as('a2000000-0000-4000-9000-000000000002');
+select tests.end_current_session();
+reset role;
+update public.profiles set is_active = false where id = 'a2000000-0000-4000-9000-000000000002';
+update public.profiles set is_active = true where id = 'a2000000-0000-4000-9000-000000000002';
+select set_config('role', 'authenticated', true);
+select is_empty($$ select 1 from public.products $$, 'after reactivation, the ended session still reads nothing');
+reset role;
+select tests.act_as('a2000000-0000-4000-9000-000000000002');
+select isnt_empty($$ select 1 from public.products $$, 'a new sign-in after reactivation works');
+reset role;
+
+-- revoke_user_sessions: server-side only, ends every session of the user.
+select ok(
+  not has_function_privilege('anon', 'public.revoke_user_sessions(uuid)', 'execute')
+  and not has_function_privilege('authenticated', 'public.revoke_user_sessions(uuid)', 'execute'),
+  'revoke_user_sessions is not callable by clients'
+);
+select ok(has_function_privilege('service_role', 'public.revoke_user_sessions(uuid)', 'execute'), 'service_role may call revoke_user_sessions');
+select tests.act_as('a2000000-0000-4000-9000-000000000001');
+reset role;
+select cmp_ok(public.revoke_user_sessions('a2000000-0000-4000-9000-000000000001'), '>=', 1, 'revoke_user_sessions ends the user''s sessions');
+select is(
+  (select count(*)::int from auth.sessions where user_id = 'a2000000-0000-4000-9000-000000000001'),
+  0,
+  'no session of that user is left'
+);
 
 select * from finish();
 rollback;

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseAllowedOrigins } from '../_shared/cors.ts';
-import { handleRequest, parseCommand, type AdminApi, type ProfileRecord } from './handler.ts';
+import { handleRequest, parseCommand, readBodyLimited, type AdminApi, type ProfileRecord } from './handler.ts';
 
 // In-memory stand-in for the Supabase admin API. The real one is exercised over HTTP by
 // tests/functions/admin-cashier.test.ts against the local stack.
@@ -20,7 +20,8 @@ function fakeAdmin() {
   const users = new Map<string, FakeUser>();
   const profiles = new Map<string, ProfileRecord>();
   const calls: string[] = [];
-  const fail = { insertProfile: false, ban: false, unban: false, profileUpdate: false, deleteUser: false };
+  const fail = { insertProfile: false, ban: false, unban: false, profileUpdate: false, deleteUser: false, revoke: false };
+  const revoked: string[] = [];
   let nextId = 1;
 
   const addAccount = (id: string, storeId: string, role: string, isActive = true) => {
@@ -84,9 +85,15 @@ function fakeAdmin() {
       user.password = password;
       return true;
     },
+    async revokeSessions(userId) {
+      calls.push(`revokeSessions:${userId}`);
+      if (fail.revoke) return false;
+      revoked.push(userId);
+      return true;
+    },
   };
 
-  return { admin, users, profiles, calls, fail };
+  return { admin, users, profiles, calls, fail, revoked };
 }
 
 let fake: ReturnType<typeof fakeAdmin>;
@@ -277,7 +284,21 @@ describe('set_active', () => {
     expect(await response.json()).toEqual({ cashier: { id: CASHIER_A, is_active: false } });
     expect(fake.profiles.get(CASHIER_A)!.isActive).toBe(false);
     expect(fake.users.get(CASHIER_A)!.banned).toBe(true);
-    expect(mutatingCalls()).toEqual(['setProfileActive:false', 'setBanned:true']);
+    expect(mutatingCalls()).toEqual(['setProfileActive:false', 'setBanned:true', `revokeSessions:${CASHIER_A}`]);
+  });
+
+  it('ends the existing sessions, so they cannot return after reactivation (INFO-3)', async () => {
+    await call({ action: 'set_active', cashier_id: CASHIER_A, is_active: false });
+    await call({ action: 'set_active', cashier_id: CASHIER_A, is_active: true });
+    expect(fake.revoked).toEqual([CASHIER_A]); // reactivation does not need to (and cannot) revive anything
+  });
+
+  it('fails closed when the sessions cannot be ended: profile inactive and banned, 500 for a retry', async () => {
+    fake.fail.revoke = true;
+    const response = await call({ action: 'set_active', cashier_id: CASHIER_A, is_active: false });
+    expect(response.status).toBe(500);
+    expect(fake.profiles.get(CASHIER_A)!.isActive).toBe(false);
+    expect(fake.users.get(CASHIER_A)!.banned).toBe(true);
   });
 
   it('reactivates: ban lifted and profile active', async () => {
@@ -328,6 +349,7 @@ describe('reset_password', () => {
     expect(response.status).toBe(200);
     expect(await response.text()).not.toContain(NEW_PASSWORD);
     expect(fake.users.get(CASHIER_A)!.password).toBe(NEW_PASSWORD);
+    expect(fake.revoked).toEqual([CASHIER_A]); // sessions opened with the old password end (INFO-3)
   });
 
   it('cannot reset the owner’s own password or another store’s cashier', async () => {
@@ -345,5 +367,50 @@ describe('reset_password', () => {
     const response = await call({ action: 'reset_password', cashier_id: CASHIER_A, password: NEW_PASSWORD });
     expect(response.status).toBe(500);
     expect(JSON.stringify(errors.mock.calls)).not.toContain(NEW_PASSWORD);
+  });
+});
+
+describe('request body limit (INFO-4)', () => {
+  const streamOf = (...parts: string[]) =>
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const part of parts) controller.enqueue(new TextEncoder().encode(part));
+        controller.close();
+      },
+    });
+  const request = (body: BodyInit, headers: Record<string, string> = {}) =>
+    new Request('http://localhost/', { method: 'POST', body, headers, duplex: 'half' } as RequestInit);
+
+  it('reads a body up to the limit, multi-byte characters counted as bytes', async () => {
+    expect(await readBodyLimited(request('x'.repeat(10)), 10)).toBe('x'.repeat(10));
+    expect(await readBodyLimited(request('é'.repeat(5)), 10)).toBe('é'.repeat(5));
+    expect(await readBodyLimited(request('é'.repeat(6)), 10)).toBeNull();
+  });
+
+  it('refuses a declared Content-Length over the limit without reading the body', async () => {
+    let pulled = false;
+    // highWaterMark 0: the stream is pulled only when someone reads it.
+    const body = new ReadableStream<Uint8Array>(
+      {
+        pull() {
+          pulled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    expect(await readBodyLimited(request(body, { 'Content-Length': '999999' }), 4096)).toBeNull();
+    expect(pulled).toBe(false);
+  });
+
+  it('stops reading a body without Content-Length as soon as it passes the limit', async () => {
+    expect(await readBodyLimited(request(streamOf('a'.repeat(3000), 'b'.repeat(3000), 'c'.repeat(3000))), 4096)).toBeNull();
+    expect(await readBodyLimited(request(streamOf('a'.repeat(2000), 'b'.repeat(2000))), 4096)).toBe('a'.repeat(2000) + 'b'.repeat(2000));
+  });
+
+  it('answers an oversized request with invalid_request (body) and changes nothing', async () => {
+    const response = await call({ action: 'create', name: 'x'.repeat(5000), email: 'a@b.test', password: 'kasir-baru-123' });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'invalid_request', field: 'body' });
+    expect(mutatingCalls()).toEqual([]);
   });
 });
