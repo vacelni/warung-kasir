@@ -361,3 +361,15 @@ cells starting with =, +, -, @ are neutralized (formula injection)
 profile export contains no credentials or secrets
 exported files: store, categories, products, transactions, transaction_items (+ profiles, optional)
 cashier cannot access the export screen
+
+G.19 Security Headers and CSP Tests (Phase 12)
+
+Unit (scripts/headers.test.ts): inline-script hashes, Supabase origin parsing, policy contents (no 'unsafe-inline'/'unsafe-eval'), inline style/handler refusal, Cloudflare line limit.
+
+E2E on the production build (tests/e2e/headers.spec.ts, static projects): every page, the 404 page, /sw.js, and the manifest carry one CSP plus X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Cross-Origin-Opener-Policy, Permissions-Policy; every inline script served is allowed by its hash.
+
+Every E2E test fails on any securitypolicyviolation event or CSP console message, whatever its console allow-list (tests/e2e/support/test.ts; proven by tests/e2e/guard.spec.ts).
+
+Login before hydration (tests/e2e/auth.spec.ts, JavaScript disabled): submitting the form sends nothing and puts no credential in any URL.
+
+Logout offline with an expired access token (tests/e2e/sync.offline.spec.ts): the session is removed from the device within 5 s; the next visit reaches login; pending sales stay and sync only after their cashier logs in again.

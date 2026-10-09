@@ -22,6 +22,11 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+        env:
+          # Placeholders: the build inlines them and writes the CSP connect-src from the URL
+          # (scripts/build-headers.mts fails without it). Nothing connects to them in CI.
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci-placeholder
 
   # Schema, constraints, grants, and RLS (pgTAP) against a fresh local database:
   # proves the migrations and seed replay from zero.

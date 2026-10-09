@@ -216,7 +216,7 @@ E.12 Accepted Risks
 
 Harga snapshot dari client: RPC menerima unit_price dari cache client tanpa membandingkan dengan harga produk saat ini, agar penjualan offline yang sah tetap dapat disinkronkan. Server tetap memvalidasi kepemilikan produk, quantity, aritmetika, dan pembayaran. Risiko: Cashier secara teknis dapat mengirim harga berbeda melalui request langsung.
 
-Session token di localStorage: konsekuensi arsitektur SPA statis. Mitigasi: tanpa script pihak ketiga, tanpa dangerouslySetInnerHTML, Content-Security-Policy melalui header Cloudflare.
+Session token di localStorage: konsekuensi arsitektur SPA statis. Mitigasi: tanpa script pihak ketiga, tanpa dangerouslySetInnerHTML, Content-Security-Policy melalui header Cloudflare (dibuat saat build, tanpa 'unsafe-inline'/'unsafe-eval'; TECHNICAL_SPEC H.5). CSP membatasi script dan tujuan koneksi, tetapi tidak mencegah script yang sudah diizinkan membaca token; karena itu tidak boleh ada script pihak ketiga.
 
 Export CSV bukan backup disaster-recovery yang lengkap dan tidak ada fitur restore pada MVP.
 

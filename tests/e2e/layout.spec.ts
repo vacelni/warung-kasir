@@ -274,12 +274,20 @@ test('the layout audit itself catches overflow, clipped prices, tiny and covered
   await expect(page.getByRole('button', { name: 'MASUK' })).toBeVisible();
   expect(await layoutProblems(page), 'a healthy page reports nothing').toEqual([]);
 
+  // Fixtures are styled through CSSOM (element.style), which the production CSP allows; an inline
+  // style="" attribute would be blocked there (style-src 'self', SEC-03).
   await page.evaluate(() => {
-    const add = (html: string) => document.body.insertAdjacentHTML('beforeend', html);
-    add('<span id="price" style="display:block; width: 30px; overflow: hidden; white-space: nowrap">Rp1.250.000</span>');
-    add('<button id="tiny" style="width: 20px; height: 20px">x</button>');
-    add('<button id="hidden-under-bar" style="width: 120px; height: 48px">Bayar</button>');
-    add('<div style="position: fixed; left: 0; right: 0; bottom: 0; top: 0; background: white; z-index: 99"></div>');
+    const add = (tag: string, id: string, text: string, css: string) => {
+      const element = document.createElement(tag);
+      if (id) element.id = id;
+      element.textContent = text;
+      element.style.cssText = css;
+      document.body.append(element);
+    };
+    add('span', 'price', 'Rp1.250.000', 'display:block; width: 30px; overflow: hidden; white-space: nowrap');
+    add('button', 'tiny', 'x', 'width: 20px; height: 20px');
+    add('button', 'hidden-under-bar', 'Bayar', 'width: 120px; height: 48px');
+    add('div', '', '', 'position: fixed; left: 0; right: 0; bottom: 0; top: 0; background: white; z-index: 99');
   });
   const problems = (await layoutProblems(page)).join(' | ');
   expect(problems).toContain('cuts off a price');
@@ -290,7 +298,11 @@ test('the layout audit itself catches overflow, clipped prices, tiny and covered
   await page.reload();
   await expect(page.getByRole('button', { name: 'MASUK' })).toBeVisible();
   await page.evaluate(() => {
-    document.body.insertAdjacentHTML('beforeend', '<div id="wide" style="width: 3000px; height: 20px; background: red">wide</div>');
+    const wide = document.createElement('div');
+    wide.id = 'wide';
+    wide.textContent = 'wide';
+    wide.style.cssText = 'width: 3000px; height: 20px; background: red';
+    document.body.append(wide);
   });
   const sideways = (await layoutProblems(page)).join(' | ');
   expect(sideways).toContain('page scrolls sideways');

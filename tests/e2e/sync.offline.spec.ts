@@ -195,9 +195,10 @@ test('logout warning: Sinkronkan sekarang sends the pending sale, then logs out'
   await context.setOffline(true);
   const id = await sell(page, ['Es Teh']);
   await openLainnya(page);
-  await context.setOffline(false);
   // Keep the sale pending until the user asks: hold the automatic sync off for this one call.
+  // Installed before going online, or the sync that the online event starts can get through first.
   await page.route(`**${RPC}`, (route) => route.abort('internetdisconnected'), { times: 1 });
+  await context.setOffline(false);
 
   await page.getByRole('main').getByRole('button', { name: 'Keluar' }).click();
   const dialog = page.getByRole('dialog', { name: /Masih ada 1 transaksi belum tersinkron\./ });

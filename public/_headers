@@ -1,12 +1,20 @@
 # Cloudflare static-asset response headers (copied to out/_headers by `next build`).
-# Phase 10: service worker and cache behavior. Content-Security-Policy is defined and audited in
-# Phase 12 (SECURITY E.12). Supabase responses never pass through these rules: they come from
-# the Supabase origin, and the service worker never caches them (features/offline/sw.ts).
+#
+# Content-Security-Policy: added to the "/*" rule below by scripts/build-headers.mts after the build,
+# with the SHA-256 hash of every inline script in the exported HTML and the Supabase origin of this
+# build (SEC-03, SECURITY E.12). Never set it here, and never in a second rule: a request matching
+# two rules would get two policies, and browsers enforce both.
+#
+# Supabase responses never pass through these rules: they come from the Supabase origin, and the
+# service worker never caches them (features/offline/sw.ts). HSTS depends on the production domain
+# (docs/RUNBOOK.md).
 
 /*
   X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()
 
 # The browser must always see the newest worker; a new version then waits for the next launch.
 /sw.js
