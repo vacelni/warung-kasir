@@ -202,7 +202,10 @@ header check → smoke test. Do not open the app to staff before the smoke test 
 2. `npx supabase link --project-ref <project-ref>` *(approval)*.
 3. `npx supabase db push --dry-run` *(approval)*: the list must be exactly the files in
    `supabase/migrations/`. Never add `--include-seed` (the seed has test accounts and passwords).
-4. `npx supabase db push` *(approval)*.
+4. Before the real push, run the INFO-3 privilege check from step 5 (read-only): the RLS helpers
+   are SECURITY DEFINER functions owned by `postgres`; without SELECT/DELETE on `auth.sessions` the
+   migration would succeed but every signed-in data access would fail at runtime. Then
+   `npx supabase db push` *(approval)*.
 5. Read-only checks (SQL Editor):
 
    ```sql

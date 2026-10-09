@@ -558,3 +558,16 @@ hosted project in Phase 13** (approval): enable it in the dashboard if the toggl
 via the Management API field; verify with a read-only config read and the RUNBOOK §7.7 smoke check.
 The app has no self-service password screen, so no app or SDK change is needed; if one is ever
 added it must send `current_password` (snake_case, supported by the installed supabase-js 2.117.3).
+
+---
+
+## Phase 13 — production deployment log (each step approved by the user)
+
+| Step | Result |
+|---|---|
+| Merge `feature/warungkasir-launch-readiness` → `main` | fast-forward, `efa35f0` |
+| Remote + push | `origin` = github.com/vacelni/kasir (private: anonymous 404); full-history secret scan clean (only the fake fixture); `origin/main` = `efa35f0` |
+| Project | `ojzhdnoknssbmlkejpha` (name "kasir"), created by the user; linked by the user in their own terminal |
+| Hosted versions | GoTrue v2.197.0 (= local), Postgres 17.11.0.003 (local 17.11.0.004), PostgREST v14.18 |
+| `db push --dry-run` | exactly the 8 migrations, seeds: none, roles: none; nothing changed |
+| INFO-3 privilege pre-check (SQL Editor, run by the user) | `postgres` SELECT on `auth.sessions` = true, DELETE = true |
