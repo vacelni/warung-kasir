@@ -155,6 +155,13 @@ MVP tidak bergantung pada pemulihan password berbasis email:
 password Cashier di-reset oleh Owner melalui Edge Function;
 pemulihan akun Owner menggunakan proses Supabase Dashboard yang terdokumentasi di docs/RUNBOOK.md (dibuat pada Phase 2).
 
+Perubahan password/email oleh user sendiri (SEC-04):
+
+aplikasi tidak menyediakan layar ubah password atau email; password Cashier hanya di-reset Owner;
+secure_password_change = true: diukur pada GoTrue v2.197.0, session yang lebih tua dari 24 jam ditolak (reauthentication_needed); session yang baru login masih dapat mengubah password-nya sendiri melalui API Auth — setting ini TIDAK menonaktifkan perubahan password mandiri;
+perubahan email memerlukan konfirmasi ke alamat lama dan baru (double_confirm_changes = true, secure email change); tidak diterapkan langsung;
+risiko sisa (E.12): orang yang memegang perangkat yang baru login dapat mengganti password akun tersebut; Owner memulihkan akun Cashier dengan reset password (yang juga mengakhiri semua session), Owner memulihkan akunnya melalui RUNBOOK.
+
 E.9 Session
 
 Session persistence:

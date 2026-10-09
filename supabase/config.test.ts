@@ -22,4 +22,13 @@ describe('supabase/config.toml stays safe to deploy', () => {
       ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3100', 'http://127.0.0.1:3100'].sort(),
     );
   });
+
+  it('keeps public sign-up off and password/email changes behind reauthentication or confirmation (SEC-04)', () => {
+    const setting = (name: string) => [...config.matchAll(new RegExp(String.raw`^${name}\s*=\s*(\w+)`, 'gm'))].map((m) => m[1]);
+    // [auth] enable_signup (public sign-up) is false; [auth.email] enable_signup only enables the
+    // email provider itself (true), which logins need.
+    expect(setting('enable_signup').slice(0, 1)).toEqual(['false']);
+    expect(setting('secure_password_change')).toEqual(['true']);
+    expect(setting('double_confirm_changes')).toEqual(['true']);
+  });
 });

@@ -269,3 +269,20 @@ and message (checked `logFailure`). Tests: handler unit +4, real HTTP +1.
 `pages project delete`, `wrangler delete`; SECURITY E.13 updated. INFO-6: GoTrue-written hashes
 start `$2a$10$`, `gen_salt('bf')` gives `$2a$06$` (local catalog) → RUNBOOK uses `gen_salt('bf', 10)`
 and points to `revoke_user_sessions`.
+
+## 12R.10 — SEC-04 password and email change (2026-10-09)
+
+Measured with a cashier's own session (scratch script, local stack), before → after setting
+`secure_password_change = true` (local stack restarted; `GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION=true`):
+
+| Check | Before | After |
+|---|---|---|
+| change own password, fresh session | 200 | 200 |
+| change own password, session backdated 25 h | 200 | 400 `reauthentication_needed` |
+| change own email | 500 locally (confirmation mail cannot be sent: mail service excluded); email unchanged | same |
+| owner reset via admin-cashier, then login | 200 | 200 |
+
+Decision applied (user): no self-service UI. Documented precisely (SECURITY E.8): the setting does
+not disable self-service password change. `enable_confirmations` left false (it governs sign-up
+confirmation; sign-up is off; email change already needs confirmation). Guard test in
+`supabase/config.test.ts`.
