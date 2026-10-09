@@ -11,8 +11,8 @@ These engineering records track execution only and never override the specs.
 | Mission | Launch readiness: Phase 12 remediation → release preparation → launch-audit preparation |
 | Branch | `feature/warungkasir-launch-readiness` (from `a0ddd47`, Phase 11 checkpoint) |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
-| Current phase | 13-prep complete → waiting for approval of Phase 13 (production deployment) |
-| Current sub-step | Release-candidate full Playwright matrix interrupted (low memory) at 656/726, 0 failures: re-run RUNBOOK §6, then `npx supabase db reset`; then user decisions in `LAUNCH_READINESS.md` and RUNBOOK §7 with approval |
+| Current phase | Release candidate verified locally (`81dfa99`) → waiting for approval of merge/remote and Phase 13 (production deployment) |
+| Current sub-step | none in progress. All RUNBOOK §6 gates passed (PHASE_LOG). Next, only with approval: merge to `main` (fast-forward), git remote, then RUNBOOK §7 step by step |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records

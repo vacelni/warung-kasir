@@ -320,4 +320,9 @@ Open `/kasir.html` and confirm the redirect to `/kasir` carries the same headers
   expected (sessions ended); the sale syncs after the cashier logs in again.
 - Suspected account compromise: the owner resets that cashier's password (ends all its sessions at
   once, INFO-3); for the owner account, section 3 and `select public.revoke_user_sessions('<USER_UID>');`.
+- Self-service password change (SEC-04 residual): anyone holding a session less than 24 hours old can
+  change that account's password through the Auth API (the app has no screen for it, but that is not
+  an API restriction). Controls: the owner signs in only on the owner's own phone, never on the shared
+  till; screen lock on every device. A cashier who suddenly cannot log in: the owner resets the
+  password; Dashboard → Authentication → Logs shows password-update events.
 - Supabase project paused: section 5.

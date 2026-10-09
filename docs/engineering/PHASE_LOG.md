@@ -433,3 +433,61 @@ passed after INFO-3 (33 passed / 1 skipped, 57 passed); later changes were cover
 (`sync.offline.spec.ts` 12 passed after the review fixes; receipt offline 2 passed; history
 mutation 6 passed). **Action:** re-run RUNBOOK §6 in full on the release commit when memory allows,
 then `npx supabase db reset` (the interrupted run may have left test data in the local database).
+
+## Release-candidate gate, complete run on `81dfa99` (2026-10-09, second session)
+
+Code identical to `7051314` (the commits after it change documentation only). Memory: about
+1.5–3 GB available throughout (held by user applications); no orphaned test processes. Strategy: one
+Playwright project per process, `--workers=1`, `--no-deps`, foreground, in the config's dependency
+order (the seven read-only projects, then `mutations` → `mutations-edge` → `static-mutations` →
+`offline` → `offline-edge`). Target checked before each reset: no `project-ref` in `supabase/.temp`,
+API `127.0.0.1:54321`, DB `127.0.0.1:54322`. Sign-in rate limit left at the committed default (30);
+no rate-limit failures occurred.
+
+| Gate (RUNBOOK §6) | Result |
+|---|---|
+| `npx supabase db reset` (before) | local, done |
+| `npm run lint` | pass |
+| `npm run typecheck` | pass |
+| `npm run test -- --maxWorkers=2` | 67 files, **942 passed** |
+| `npm run build` | pass; CSP 19 hashes / 18 pages |
+| `npm run test:db` | 6 files, **365 passed** |
+| `npm run test:functions` | 3 files, **21 passed** |
+| Playwright (726 tests, 12 projects) | **516 passed, 0 failed, 210 skipped, 0 interrupted, 0 did not run** |
+| `npx supabase db reset` (after) | local, done |
+| `npm audit --omit=dev` | **0** |
+| `npx supabase db advisors --local` | **No issues found** |
+| `npm audit` (including dev) | 5 high: the documented INFO-2 chain (unchanged) |
+
+Per project (passed / skipped / failed, time): 360x800 78/12/0 (6.1 m); 390x844 29/61/0 (1.8 m);
+412x915 29/61/0 (1.7 m); chromium 62/28/0 (5.2 m); msedge 62/28/0 (6.0 m); static 88/2/0 (4.7 m);
+static-desktop 73/17/0 (4.8 m); mutations 20/0/0 (2.5 m); mutations-edge 20/0/0 (3.1 m);
+static-mutations 20/0/0 (2.4 m); offline 18/0/0 (1.6 m); offline-edge 17/1/0 (1.8 m).
+
+Skips: every skip is a viewport/project restriction written as `test.skip(...)` with a reason; none
+skips a feature. Accounting against the Phase 11 baseline (144): + `guard.spec.ts` (new; 360 px only,
+skipped on 5 projects) + `headers.spec.ts` (new; 11 tests, static build only: 55) + the SEC-02 test
+(inherits the existing 360-px rule of `auth.spec.ts`: 5) + the `offline-edge` PWA install check
+(pre-existing; the baseline's offline projects did not run) = **210**. Correction to the 12R
+exit-gate note, which said 6 for the guard spec: it is 5. Only two skip conditions were added since
+`a0ddd47`, both listed above.
+
+**Release-candidate verdict: all local gates of RUNBOOK §6 PASS.**
+
+### SEC-04 residual risk review (self-service password change; interacts with INFO-3)
+
+Re-measured on the release candidate (scratch scripts, local stack, test accounts removed):
+- Fresh session (< 24 h): `PUT /auth/v1/user {password}` returns 200; the new password logs in.
+- Session backdated 25 h: `reauthentication_needed` (400). Email change: never applied directly.
+- After a fresh session changes the password: GoTrue keeps only the changer's session; the account's
+  other device loses data access at once (INFO-3 live-session check) and its refresh is refused
+  (400); the old password is refused.
+- Owner reset afterwards: every session ends (including the changer's), the changer's password stops
+  working, the owner-set password works.
+
+Assessment: the absence of a UI is not an API restriction; any holder of a < 24 h session can change
+that account's password. Impact: what the session could already do, plus persistence and locking
+out the real user. Cashier account: the owner recovers at once (reset). Owner account: recovery via
+RUNBOOK §3 (dashboard). Supabase offers no setting or hook that disables self-service password
+updates. No code change before launch; operational controls added to RUNBOOK §9 and SECURITY E.8
+(owner signs in only on the owner's own device, screen locks, Auth log review).

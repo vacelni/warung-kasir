@@ -8,7 +8,7 @@ Status: ✅ met · ❌ not met · ⬜ not yet checked (external/manual).
 
 | State | Status |
 |---|---|
-| Ready for deployment — local evidence | **READY, pending one full re-run**: every gate passed on `7051314` except the full Playwright matrix, which was interrupted (low memory) at 656/726 with 0 failures; re-run RUNBOOK §6 before deploying |
+| Ready for deployment — local evidence | **READY**: every RUNBOOK §6 gate passed on `81dfa99` (code identical to `7051314`); Playwright 516 passed / 0 failed / 210 skipped (restrictions only) of 726 |
 | Deployed | **NO** — no hosted Supabase project, no Cloudflare project, no git remote |
 | Verified in production | **NO** — RUNBOOK §7.6–7.7 after an approved deployment |
 
@@ -44,8 +44,8 @@ Status: ✅ met · ❌ not met · ⬜ not yet checked (external/manual).
 
 | Requirement | Evidence | Status |
 |---|---|---|
-| lint, typecheck, unit (942), pgTAP (365), functions (21), build | LOCAL — latest runs in PHASE_LOG | ✅ |
-| Full Playwright matrix | LOCAL — 500 passed / 0 failed at 12R exit; affected specs re-run after each later change | ✅ (re-run on the release commit, RUNBOOK §6) |
+| lint, typecheck, unit (942), pgTAP (365), functions (21), build | LOCAL — release-candidate run on `81dfa99` | ✅ |
+| Full Playwright matrix | LOCAL — 726 tests on `81dfa99`: 516 passed, 0 failed, 210 skipped, 0 interrupted | ✅ |
 | No new feature skips; no weakened assertions | PHASE_LOG: new skips are project restrictions; changed expectations logged with reasons | ✅ |
 | Production dependency audit = 0 | `npm audit --omit=dev` | ✅ |
 | Dev dependency advisories | INFO-2: documented, no compatible fix | ✅ documented |
