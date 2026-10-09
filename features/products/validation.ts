@@ -3,8 +3,12 @@ import type { Money } from '@/lib/money';
 /** DATABASE D.5: price is a Postgres integer, above 0. */
 export const MAX_PRICE: Money = 2_147_483_647;
 
+/** DATABASE D.5 (SEC-07): product names are at most 120 characters. */
+export const MAX_NAME_LENGTH = 120;
+
 export const PRODUCT_MESSAGES = {
   nameRequired: 'Nama menu wajib diisi.',
+  nameTooLong: `Nama menu paling banyak ${MAX_NAME_LENGTH} karakter.`,
   categoryRequired: 'Pilih kategori.',
   priceRequired: 'Harga wajib diisi.',
   priceNotInteger: 'Harga harus berupa angka bulat, tanpa titik, koma, atau tanda minus.',
@@ -42,6 +46,7 @@ export function validateProductForm(values: ProductFormValues, categoryIds: read
 
   const name = values.name.trim();
   if (name === '') errors.name = PRODUCT_MESSAGES.nameRequired;
+  else if ([...name].length > MAX_NAME_LENGTH) errors.name = PRODUCT_MESSAGES.nameTooLong;
 
   if (!categoryIds.includes(values.categoryId)) errors.categoryId = PRODUCT_MESSAGES.categoryRequired;
 

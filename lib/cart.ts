@@ -16,6 +16,14 @@ export type Cart = readonly CartItem[];
 
 export const EMPTY_CART: Cart = [];
 
+/** At most this many different products in one sale (DATABASE D.9, SEC-07). */
+export const MAX_CART_LINES = 200;
+
+/** Whether one more unit of this product fits in the cart: a product already in it always does. */
+export function canAddProduct(cart: Cart, productId: string): boolean {
+  return cart.length < MAX_CART_LINES || cart.some((item) => item.productId === productId);
+}
+
 function updateItem(cart: Cart, productId: string, update: (item: CartItem) => CartItem): Cart {
   if (!cart.some((item) => item.productId === productId)) return cart;
   return cart.map((item) => (item.productId === productId ? update(item) : item));
@@ -26,6 +34,7 @@ export function addProduct(cart: Cart, product: CartProduct): Cart {
   if (cart.some((item) => item.productId === product.id)) {
     return increaseQuantity(cart, product.id);
   }
+  if (!canAddProduct(cart, product.id)) return cart;
   // Validates the price before the line exists.
   calculateSubtotal(product.price, 1);
   return [...cart, { productId: product.id, name: product.name, unitPrice: product.price, quantity: 1 }];

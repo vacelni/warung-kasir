@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_PRICE, parsePrice, PRODUCT_MESSAGES, validateProductForm } from './validation';
+import { MAX_NAME_LENGTH, MAX_PRICE, parsePrice, PRODUCT_MESSAGES, validateProductForm } from './validation';
 
 describe('parsePrice', () => {
   it.each([
@@ -66,5 +66,20 @@ describe('validateProductForm', () => {
   it('rejects a fractional price even when everything else is valid', () => {
     const result = validateProductForm({ name: 'Es Teh', categoryId: 'minuman', price: '5000.50' }, categories);
     expect(result).toEqual({ ok: false, errors: { price: PRODUCT_MESSAGES.priceNotInteger } });
+  });
+});
+
+describe('product name length (SEC-07, DATABASE D.5)', () => {
+  const categories = ['makanan'];
+  const validate = (name: string) => validateProductForm({ name, categoryId: 'makanan', price: '1000' }, categories);
+
+  it('accepts 120 characters (after trimming), counting each character once', () => {
+    expect(MAX_NAME_LENGTH).toBe(120);
+    expect(validate(` ${'a'.repeat(120)} `).ok).toBe(true);
+    expect(validate('🍜'.repeat(120)).ok).toBe(true);
+  });
+
+  it('refuses 121 characters', () => {
+    expect(validate('a'.repeat(121))).toEqual({ ok: false, errors: { name: PRODUCT_MESSAGES.nameTooLong } });
   });
 });

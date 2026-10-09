@@ -1,4 +1,4 @@
-import { cartTotal, itemSubtotal, type Cart } from './cart';
+import { cartTotal, itemSubtotal, MAX_CART_LINES, type Cart } from './cart';
 import { calculateChange, formatRupiah, type Money } from './money';
 import { jakartaDateKey } from './time';
 
@@ -104,6 +104,7 @@ type BuildTransactionInput = {
  */
 export function buildTransaction({ id, createdAt, cart, paid, cashierId, storeId }: BuildTransactionInput): TransactionSnapshot {
   if (cart.length === 0) throw new RangeError('Cannot check out an empty cart.');
+  if (cart.length > MAX_CART_LINES) throw new RangeError(`A sale has at most ${MAX_CART_LINES} different products.`);
 
   const items = cart.map((item) => ({
     product_id: item.productId,

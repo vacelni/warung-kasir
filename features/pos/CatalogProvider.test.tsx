@@ -8,6 +8,7 @@ import type { Catalog } from './api';
 import { CartProvider } from './CartProvider';
 import { CatalogProvider } from './CatalogProvider';
 import { ProductPicker } from './ProductPicker';
+import { ToastProvider } from '@/components/ui/Toast';
 
 const cashier: Profile = { id: 'cashier-1', storeId: 'store-a', name: 'Andi', role: 'cashier' };
 const mocks = vi.hoisted(() => ({ fetchCatalog: vi.fn() }));
@@ -38,11 +39,13 @@ afterEach(() => {
 
 function renderKasir() {
   return render(
-    <CatalogProvider>
-      <CartProvider>
-        <ProductPicker />
-      </CartProvider>
-    </CatalogProvider>,
+    <ToastProvider>
+      <CatalogProvider>
+        <CartProvider>
+          <ProductPicker />
+        </CartProvider>
+      </CatalogProvider>
+    </ToastProvider>,
   );
 }
 

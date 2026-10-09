@@ -9,7 +9,7 @@ import type { Category } from '@/features/categories/api';
 import { cx } from '@/lib/cx';
 import { formatRupiah } from '@/lib/money';
 import { createProduct, updateProduct, type Product } from './api';
-import { parsePrice, validateProductForm, type ProductFormErrors, type ProductFormValues } from './validation';
+import { MAX_NAME_LENGTH, parsePrice, validateProductForm, type ProductFormErrors, type ProductFormValues } from './validation';
 
 type ProductFormProps = {
   open: boolean;
@@ -92,6 +92,7 @@ export function ProductForm({ open, product, categories, storeId, onClose, onSav
           onChange={(event) => change('name', event.target.value)}
           error={errors.name}
           autoComplete="off"
+          maxLength={MAX_NAME_LENGTH}
           data-autofocus
         />
         <CategorySelect

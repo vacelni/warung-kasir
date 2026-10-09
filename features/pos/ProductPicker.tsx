@@ -5,9 +5,11 @@ import { useMemo, useState } from 'react';
 import { Alert } from '@/components/ui/Alert';
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { useProfile } from '@/features/auth/AuthProvider';
+import { canAddProduct, MAX_CART_LINES } from '@/lib/cart';
 import { CartBar } from './CartBar';
 import { useCart } from './CartProvider';
 import { useCatalog } from './CatalogProvider';
@@ -22,6 +24,7 @@ export function ProductPicker() {
   const { state, reload } = useCatalog();
   const { cart, itemCount, total, add } = useCart();
   const profile = useProfile();
+  const toast = useToast();
   const [query, setQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
@@ -43,6 +46,10 @@ export function ProductPicker() {
   }
 
   function addToCart(product: CatalogProduct) {
+    if (!canAddProduct(cart, product.id)) {
+      toast.show(`Satu transaksi paling banyak ${MAX_CART_LINES} jenis menu.`, 'danger');
+      return;
+    }
     add({ id: product.id, name: product.name, price: product.price });
   }
 

@@ -151,3 +151,70 @@ Results:
 | auth + smoke specs on `360x800`, `static`, `static-desktop` | 30 passed, 9 skipped (viewport restrictions) |
 | SEC-01 E2E (`offline`) after the LoginForm change | 2 passed |
 | lint, typecheck | pass |
+
+## 12R.4 — SEC-03 CSP and security headers (2026-10-09)
+
+Changes: new `scripts/headers.mts` (pure) + `scripts/headers.test.ts` (18 tests),
+`scripts/build-headers.mts` (post-build; reads `.env*` through `@next/env` like `next build`),
+`package.json` build = `next build && build-sw && build-headers`, `public/_headers` (nosniff, DENY,
+`no-referrer`, COOP `same-origin`, Permissions-Policy), new `app/not-found.tsx` (the default 404
+had 4 inline `style` attributes), `.github/workflows/ci.yml` (placeholder URL/key for the build),
+new `tests/e2e/headers.spec.ts` (22 tests on `static`/`static-desktop`), docs TECHNICAL_SPEC H.5,
+SECURITY E.12, TEST_PLAN G.19.
+
+Policy as built: one `/*` rule, 1,304 characters, 19 script hashes from 18 pages,
+`connect-src 'self' <supabase origin>`; no `unsafe-*`.
+
+Evidence that the policy breaks nothing: every `static`, `static-desktop`, `static-mutations`,
+`offline`, `offline-edge` test ran with the CSP guard. Results: static 155 passed / 2 failed / 19
+skipped; static-mutations 19 passed; offline 24 passed / 1 failed / 1 skipped. Every CSP message
+came from one test fixture (the layout audit's self-test injected `style=""` HTML; the policy
+correctly blocked it → fixture now styles through CSSOM). The offline failure was a pre-existing
+race in "logout warning: Sinkronkan sekarang" (the route holding back the automatic sync was
+installed after going online) → route installed first; 8/8 repeated runs pass.
+
+## 12R.5 — SEC-08 default privileges (2026-10-09)
+
+Catalog before (`pg_default_acl`): postgres/public functions `anon=X, authenticated=X`; sequences
+`anon=rwU, authenticated=rwU`; and no global entry, so PostgreSQL's built-in EXECUTE to PUBLIC
+applied as well (a per-schema revoke cannot remove it). Migration
+`20261009120000_default_privileges.sql` revokes the global PUBLIC default for functions of
+`postgres` and the per-schema anon/authenticated defaults for functions and sequences.
+`supabase_admin` defaults are not changeable by `postgres` on the hosted platform (documented).
+
+pgTAP `01_schema` +6: no `public`/`private` function executable by anon; authenticated only on the
+allow-list; a function and a sequence created inside the test get no client privileges;
+service_role keeps its default. Side effect found: the pgTAP helper functions (`tests.*`) had relied
+on the PUBLIC default → each test file now grants its helpers explicitly (schema default).
+
+## 12R.6 — SEC-05 RPC ownership race (+ SEC-07 RPC limits) (2026-10-09)
+
+Migration `20261009120100_create_transaction_ownership_limits.sql` (`create or replace`, generated
+from the original text; diff = conflict-branch ownership re-check, ≤ 200 items, product_name ≤ 120;
+grants re-asserted). New `tests/functions/create-transaction-race.test.ts`: two real psql sessions
+in the local DB container; B starts only after A printed its insert, and DB clock stamps prove B's
+call began while A's row was uncommitted. Against the **old** function (installed temporarily):
+the other-cashier case **fails** (`result=exists`) — SEC-05 reproduced. With the migration: 2
+passed. A first version of the test passed on the old function because B started after A
+committed (pre-check path); hence the clock assertions.
+
+## 12R.12 — SEC-07 payload limits (2026-10-09)
+
+Existing data checked: local seed names are short; no production data exists yet. Migration
+`20261009120200_name_length_limits.sql` (validated CHECKs; fails loudly on violating rows; check
+queries in its header). pgTAP 03 +4 (200 items ok, 201 → WK001, name 120 ok, 121 → WK001), 01 +2
+(constraint definitions). Client: `lib/cart.ts` `MAX_CART_LINES`/`canAddProduct` (201st product
+refused, more units of a listed product always allowed), `lib/checkout.ts` guard,
+`ProductPicker` toast "Satu transaksi paling banyak 200 jenis menu.", product form `maxLength` +
+validation (counted per character). Unit tests +7. DATABASE D.5, D.7, D.9, D.11 updated.
+
+Gate results on the tree with 12R.4–12R.6 and 12R.12:
+| Command | Result |
+|---|---|
+| `npm run test` | 63 files, 880 passed |
+| `npm run test:db` | 6 files, 352 passed |
+| `npm run test:functions` | 2 files, 16 passed |
+| lint, typecheck, build | pass |
+| `supabase db advisors --local` | No issues found |
+| layout + kasir + checkout + headers on `360x800`, `static`, `static-desktop` | 59 passed, 13 skipped |
+| menu + kasir mutations (`mutations`) | 2 passed |

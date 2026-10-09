@@ -192,3 +192,12 @@ describe('buildTransaction', () => {
     expect(() => buildTransaction({ ...base, cart: goldenCart(), paid: MAX_AMOUNT + 1 })).toThrow(RangeError);
   });
 });
+
+describe('buildTransaction limits (SEC-07)', () => {
+  it('refuses a cart with more than 200 different products', () => {
+    const lines = Array.from({ length: 201 }, (_, n) => ({ productId: `p-${n}`, name: `Menu ${n}`, unitPrice: 1000, quantity: 1 }));
+    expect(() =>
+      buildTransaction({ id: ID, createdAt: SALE_TIME, cashierId: 'cashier-1', storeId: 'store-1', cart: lines, paid: 1_000_000 }),
+    ).toThrow(/at most 200/);
+  });
+});

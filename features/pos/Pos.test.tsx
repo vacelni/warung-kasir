@@ -8,6 +8,7 @@ import { CartProvider } from './CartProvider';
 import { CartList } from './CartList';
 import { CatalogProvider } from './CatalogProvider';
 import { ProductPicker } from './ProductPicker';
+import { ToastProvider } from '@/components/ui/Toast';
 
 const mocks = vi.hoisted(() => ({ profile: null as Profile | null, fetchCatalog: vi.fn() }));
 
@@ -59,12 +60,14 @@ afterEach(() => {
 /** The kasir section: both screens share one cart, as in app/(app)/kasir/layout.tsx. */
 function renderKasir() {
   return render(
-    <CatalogProvider>
-      <CartProvider>
-        <ProductPicker />
-        <CartList />
-      </CartProvider>
-    </CatalogProvider>,
+    <ToastProvider>
+      <CatalogProvider>
+        <CartProvider>
+          <ProductPicker />
+          <CartList />
+        </CartProvider>
+      </CatalogProvider>
+    </ToastProvider>,
   );
 }
 

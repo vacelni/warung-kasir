@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addProduct,
+  canAddProduct,
   cartItemCount,
   cartReducer,
   cartTotal,
@@ -9,6 +10,7 @@ import {
   EMPTY_CART,
   increaseQuantity,
   itemSubtotal,
+  MAX_CART_LINES,
   quantityOf,
   removeProduct,
   type Cart,
@@ -190,5 +192,32 @@ describe('cartReducer', () => {
       { type: 'increase', productId: 'p-ayam' },
     ];
     expect(run(...actions)).toEqual(run(...actions));
+  });
+});
+
+describe('at most 200 different products per sale (SEC-07, DATABASE D.9)', () => {
+  const product = (n: number): CartProduct => ({ id: `p-${n}`, name: `Menu ${n}`, price: 1000 });
+  const full = Array.from({ length: MAX_CART_LINES }, (_, n) => product(n)).reduce<Cart>(
+    (cart, item) => addProduct(cart, item),
+    EMPTY_CART,
+  );
+
+  it('fills up to 200 lines', () => {
+    expect(MAX_CART_LINES).toBe(200);
+    expect(full).toHaveLength(200);
+  });
+
+  it('refuses a 201st product and leaves the cart unchanged', () => {
+    expect(canAddProduct(full, 'p-new')).toBe(false);
+    expect(addProduct(full, product(999))).toBe(full);
+  });
+
+  it('still adds units of a product already in a full cart', () => {
+    expect(canAddProduct(full, 'p-7')).toBe(true);
+    expect(quantityOf(addProduct(full, product(7)), 'p-7')).toBe(2);
+  });
+
+  it('allows a new product again after a line is removed', () => {
+    expect(canAddProduct(removeProduct(full, 'p-0'), 'p-new')).toBe(true);
   });
 });
