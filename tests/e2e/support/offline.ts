@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, type BrowserContext, type Page } from './test';
 
+export { EXPIRED_AT, editStoredSession, storedAccessToken } from './session';
+
 // Shared steps for the *.offline.spec.ts files. They run against the production build served on
 // port 3000 (playwright.config.ts) and the local Supabase stack with the dev seed.
 
@@ -144,30 +146,6 @@ export function putOutboxEntry(page: Page, entry: Entry) {
       }),
     entry,
   );
-}
-
-/**
- * `expires_at` of an access token that expired long ago (1970-01-01T00:00:01Z). Not 0: auth-js
- * treats a falsy `expires_at` as "never expires" and would keep using the token (SEC-09).
- */
-export const EXPIRED_AT = 1;
-
-/** Edits the stored Supabase session (to simulate an expired access token, or a revoked refresh token). */
-export function editStoredSession(page: Page, patch: { expires_at?: number; refresh_token?: string }) {
-  return page.evaluate((change) => {
-    const key = Object.keys(localStorage).find((k) => /^sb-.+-auth-token$/.test(k));
-    if (!key) throw new Error('no stored Supabase session');
-    const session = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>;
-    localStorage.setItem(key, JSON.stringify({ ...session, ...change }));
-  }, patch);
-}
-
-export function storedAccessToken(page: Page): Promise<string | null> {
-  return page.evaluate(() => {
-    const key = Object.keys(localStorage).find((k) => /^sb-.+-auth-token$/.test(k));
-    const session = key ? (JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: string } | null) : null;
-    return session?.access_token ?? null;
-  });
 }
 
 export type ServerTransaction = {

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { storedAccessToken } from './support/session';
 import { expect, test, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
@@ -83,11 +84,7 @@ function supabaseEnv(): { url: string; key: string } {
  * makes when it syncs its outbox, here with a chosen sale time on a past day.
  */
 async function syncSale(page: Page, sale: { id: string; createdAt: string; quantity: number }) {
-  const token = await page.evaluate(() => {
-    const key = Object.keys(localStorage).find((k) => /^sb-.*-auth-token$/.test(k));
-    const session = key ? (JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: string } | null) : null;
-    return session?.access_token ?? null;
-  });
+  const token = await storedAccessToken(page);
   expect(token, 'the cashier has a stored session').not.toBeNull();
 
   const total = sale.quantity * NASI_GORENG_PRICE;

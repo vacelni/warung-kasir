@@ -1,3 +1,4 @@
+import { editStoredSession, EXPIRED_AT } from './support/session';
 import { expect, FAILED_REQUEST, test, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed (`npx supabase start`,
@@ -93,12 +94,7 @@ test('a session the server rejects sends the user back to login', async ({ page,
   await expect(page.getByRole('banner')).toContainText('Budi');
 
   // Simulate an expired access token whose refresh token was revoked.
-  await page.evaluate(() => {
-    const key = Object.keys(localStorage).find((k) => /^sb-.+-auth-token$/.test(k));
-    if (!key) throw new Error('no stored Supabase session');
-    const session = JSON.parse(localStorage.getItem(key) ?? '{}');
-    localStorage.setItem(key, JSON.stringify({ ...session, expires_at: 1, refresh_token: 'revoked-token' })); // 1, not 0: a falsy expires_at never expires
-  });
+  await editStoredSession(page, { expires_at: EXPIRED_AT, refresh_token: 'revoked-token' });
   await page.reload();
 
   await expect(page).toHaveURL(/\/login(\?alasan=expired)?$/);

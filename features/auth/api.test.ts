@@ -30,7 +30,8 @@ const supabase = vi.hoisted(() => {
   };
 });
 
-vi.mock('@/lib/supabase', () => ({
+vi.mock('@/lib/supabase', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/supabase')>()),
   getSupabase: () => ({ auth: supabase.auth, from: supabase.from }),
 }));
 
@@ -328,7 +329,9 @@ describe('signOut and device data (TECHNICAL_SPEC C.10, C.12)', () => {
     expect(await getOutboxEntry('other-cashier')).toMatchObject({ cashier_id: 'someone-else' });
   });
 
-  it('works offline: the local session and caches are cleared, the outbox is not', async () => {
+  // What happens to the stored session itself is tested with the real client in signOut.test.ts
+  // (SEC-01); this mock cannot show it.
+  it('works offline: the caches are cleared, the outbox is not', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     supabase.auth.signOut.mockResolvedValue({ error: new AuthRetryableFetchError('Failed to fetch', 0) });
     await saveIdentity({ id: USER_ID, storeId: 'store-a', name: 'Andi', role: 'cashier' }, new Date());

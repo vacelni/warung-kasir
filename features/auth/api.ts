@@ -1,6 +1,6 @@
 import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { clearCatalog } from '@/features/offline/catalogCache';
-import { getSupabase } from '@/lib/supabase';
+import { AUTH_STORAGE_KEY, getSupabase, hasStoredSessionData, removeStoredSession } from '@/lib/supabase';
 import {
   AUTH_MESSAGES,
   loginErrorMessage,
@@ -129,14 +129,44 @@ export async function hasStoredSession(): Promise<boolean> {
   return data.session !== null;
 }
 
+/** How long logout waits for the server to revoke the session before ending it on the device anyway. */
+export const SIGN_OUT_SERVER_WAIT_MS = 4_000;
+
+/** The promise's result, or `timedOut` when it takes longer than `ms`. */
+async function within<T>(promise: Promise<T>, ms: number): Promise<{ timedOut: false; value: T } | { timedOut: true }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<{ timedOut: true }>((resolve) => {
+    timer = setTimeout(() => resolve({ timedOut: true }), ms);
+  });
+  try {
+    return await Promise.race([promise.then((value) => ({ timedOut: false as const, value })), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
- * Signs this device out. auth-js always clears the local session; an error only
- * means the server could not revoke the refresh token (e.g. offline).
+ * Signs this device out (SEC-01). Online, the server is asked to revoke the session first, for at
+ * most SIGN_OUT_SERVER_WAIT_MS. auth-js does not remove a stored session whose expired token it
+ * could not refresh (offline, server down), so whenever that call fails, times out, or is skipped
+ * offline, the session is deleted from storage here; auth-js then only drops it from its state and
+ * announces SIGNED_OUT in this tab and the others. The next person on the device always gets the
+ * login page. The outbox is never touched: unsynced sales stay for their cashier (C.12).
  */
 export async function signOut(): Promise<void> {
-  const { error } = await getSupabase().auth.signOut({ scope: 'local' });
-  if (error) {
-    console.warn('Signed out locally; the server could not revoke the session:', error.message);
+  const auth = getSupabase().auth;
+  let revoked = false;
+  if (navigator.onLine) {
+    const attempt = await within(auth.signOut({ scope: 'local' }), SIGN_OUT_SERVER_WAIT_MS);
+    if (attempt.timedOut) console.warn('Signing out: the server did not answer; ending the session on this device.');
+    else if (attempt.value.error) console.warn('Signing out: the server could not revoke the session:', attempt.value.error.message);
+    else revoked = true;
+  }
+
+  if (!revoked || hasStoredSessionData()) {
+    removeStoredSession();
+    const local = await within(auth.signOut({ scope: 'local' }), SIGN_OUT_SERVER_WAIT_MS);
+    if (local.timedOut || local.value.error) console.warn('Signing out: the session was removed from this device.');
   }
   await clearDeviceCaches();
 }
@@ -153,12 +183,23 @@ export async function clearDeviceCaches(): Promise<void> {
   }
 }
 
-/** Calls back when the session ends outside the app's control (refresh rejected, other tab). */
+/**
+ * Calls back when the session ends outside the app's control (refresh rejected, other tab). Also
+ * when another tab deletes the stored session directly (SEC-01), which auth-js may not announce.
+ */
 export function onSignedOut(callback: () => void): () => void {
   const { data } = getSupabase().auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT') callback();
   });
-  return () => data.subscription.unsubscribe();
+  const onStorage = (event: StorageEvent) => {
+    // key null: the other tab cleared the whole storage.
+    if ((event.key === AUTH_STORAGE_KEY || event.key === null) && !hasStoredSessionData()) callback();
+  };
+  window.addEventListener('storage', onStorage);
+  return () => {
+    data.subscription.unsubscribe();
+    window.removeEventListener('storage', onStorage);
+  };
 }
 
 /**

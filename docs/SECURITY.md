@@ -173,6 +173,14 @@ redirect → login
 
 Transaksi pending tetap tersimpan di perangkat dalam kedua kondisi. Detail: TECHNICAL_SPEC C.12.
 
+Logout (SEC-01):
+
+session selalu dihapus dari perangkat (localStorage key wk-auth, wk-auth-user, wk-auth-code-verifier), termasuk saat offline dengan access token yang sudah kedaluwarsa;
+saat online, server diminta mencabut session terlebih dahulu dengan batas tunggu ±4 detik;
+saat offline (atau server tidak menjawab), refresh token tidak dapat dicabut di server; token hanya dihapus dari perangkat;
+tab lain ikut keluar (event SIGNED_OUT auth-js, atau event storage saat key session dihapus);
+outbox tidak pernah disentuh.
+
 E.10 Roles & Accounts
 
 Role tetap; tidak dapat diubah melalui aplikasi.

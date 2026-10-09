@@ -1,3 +1,4 @@
+import { storedAccessToken } from './support/session';
 import { expect, test, type Locator, type Page } from './support/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -210,11 +211,7 @@ test('cashier: the dashboard is denied in the app and the report functions are d
 
   // Hiding the page is only UX: the same functions called straight against the API with the
   // cashier's own session are refused (AC-08, AC-14).
-  const token = await page.evaluate(() => {
-    const key = Object.keys(localStorage).find((k) => /^sb-.*-auth-token$/.test(k));
-    const session = key ? (JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: string } | null) : null;
-    return session?.access_token ?? null;
-  });
+  const token = await storedAccessToken(page);
   expect(token, 'the cashier has a stored session').not.toBeNull();
 
   const { url, key } = supabaseEnv();

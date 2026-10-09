@@ -103,3 +103,28 @@ Results:
 | `--project=mutations,mutations-edge,static-mutations --no-deps` | 57 passed |
 | auth + guard + history specs on `360x800`, `390x844`, `static` | 27 passed |
 | lint, typecheck | pass |
+
+## 12R.2 — SEC-01 offline logout (2026-10-09)
+
+Verified in auth-js 2.117.3 before changing anything: `_signOut` returns the session-load error
+(`GoTrueClient.js:3434`) before `_removeSession`; the client is lockless by default, so a follow-up
+local sign-out does not queue behind a refresh that is still retrying.
+
+Changes: `lib/supabase.ts` (`AUTH_STORAGE_KEY = 'wk-auth'`, `hasStoredSessionData`,
+`removeStoredSession`), `features/auth/api.ts` (`signOut`, `onSignedOut` storage listener),
+`features/auth/signOut.test.ts` (new, real client), `features/auth/api.test.ts` (partial mock,
+honest test name), `tests/e2e/support/session.ts` (new: key, `EXPIRED_AT`, session helpers; the old
+`sb-*-auth-token` lookups in 5 places now use it), `tests/e2e/sync.offline.spec.ts` (2 SEC-01
+tests), `docs/SECURITY.md` E.9.
+
+Results:
+| Check | Result |
+|---|---|
+| `signOut.test.ts` before the fix (storage key only) | 3 failed: `signOut()` hangs > 5 s (the 25 s refresh retry the audit measured) |
+| `signOut.test.ts` after the fix | 4 passed |
+| SEC-01 E2E against the old `api.ts` | failed: still on `/lainnya` after 5 s |
+| SEC-01 E2E, `offline` + `offline-edge` | 4 passed |
+| `npm run test` | 62 files, 852 passed |
+| `offline` + `offline-edge` projects (all offline specs) | 31 passed, 1 skipped (PWA install check on Edge, by design) |
+| auth + laporan + laporan.mutation on `360x800`, `static`, `mutations` | 23 passed, 1 skipped |
+| lint, typecheck | pass |

@@ -19,6 +19,7 @@ import {
   STORE_B_PRODUCT,
   syncStatus,
 } from './support/offline';
+import { storedAuthKeys } from './support/session';
 
 // These specs switch the network off and on on purpose. The failed requests and the app's own
 // reports of what it could not reach are expected; uncaught exceptions still fail every test.
@@ -278,6 +279,64 @@ test('G.9 server rejects the session on reconnect → login; the pending sale st
   // anything (features/offline/sync.ts), so a rejected session never sends the sale (SEC-09).
   expect(await outboxEntry(page, id)).toMatchObject({ cashier_id: KASIR1.id, sync_status: 'pending', attempts: 0 });
   expect(rpcCalls).toEqual([]);
+
+  await login(page, KASIR1.email);
+  await expect.poll(async () => (await outboxEntry(page, id))?.sync_status, { timeout: 20_000 }).toBe('synced');
+  expect(rpcCalls).toEqual([id]);
+  expect(await serverTransactions(context, id)).toHaveLength(1);
+});
+
+/**
+ * SEC-01: "Keluar" while offline after the access token expired. auth-js cannot refresh the
+ * token, so it cannot sign out by itself; the app must still delete the session, or the next person
+ * who opens the app once the network is back is signed in as this user.
+ */
+test('SEC-01: logout offline with an expired token ends the session on the device, at once', async ({ page, context }) => {
+  await startOnline(page, OWNER.email);
+  await context.setOffline(true);
+  await editStoredSession(page, { expires_at: EXPIRED_AT });
+  await page.reload();
+  await expect(page.getByRole('banner')).toContainText(OWNER.name); // still in the app (D5)
+
+  await openLainnya(page);
+  const started = Date.now();
+  await page.getByRole('main').getByRole('button', { name: 'Keluar' }).click();
+  await expect(page).toHaveURL(/\/login$/, { timeout: 5_000 });
+  expect(Date.now() - started).toBeLessThan(5_000);
+  expect(await storedAuthKeys(page)).toEqual([]);
+
+  // Network back: the next person on this device gets the login page, not the owner's account.
+  await context.setOffline(false);
+  await page.goto('/kasir');
+  await expect(page).toHaveURL(/\/login$/);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'MASUK' })).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(await storedAuthKeys(page)).toEqual([]);
+});
+
+test('SEC-01: "Tetap keluar" offline with an expired token keeps the sale, which syncs only after that cashier logs in', async ({ page, context }) => {
+  await startOnline(page, KASIR1.email);
+  await context.setOffline(true);
+  const id = await sell(page, ['Mie Goreng']);
+  await editStoredSession(page, { expires_at: EXPIRED_AT });
+
+  await openLainnya(page);
+  await page.getByRole('main').getByRole('button', { name: 'Keluar' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Masih ada 1 transaksi belum tersinkron.' });
+  const started = Date.now();
+  await dialog.getByRole('button', { name: 'Tetap keluar' }).click();
+  await expect(page).toHaveURL(/\/login$/, { timeout: 5_000 });
+  expect(Date.now() - started).toBeLessThan(5_000);
+  expect(await storedAuthKeys(page)).toEqual([]);
+  expect(await outboxEntry(page, id)).toMatchObject({ cashier_id: KASIR1.id, sync_status: 'pending', attempts: 0 });
+
+  const rpcCalls = recordRpcCalls(context);
+  await context.setOffline(false);
+  await page.goto('/kasir');
+  await expect(page).toHaveURL(/\/login$/);
+  await page.waitForTimeout(1_000);
+  expect(rpcCalls).toEqual([]); // nobody is signed in: nothing is sent
 
   await login(page, KASIR1.email);
   await expect.poll(async () => (await outboxEntry(page, id))?.sync_status, { timeout: 20_000 }).toBe('synced');
