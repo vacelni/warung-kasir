@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { enqueueTransaction, getOutboxEntry } from '@/features/offline/outbox';
-import { AUTH_STORAGE_KEY, getSupabase } from '@/lib/supabase';
+import { AUTH_STORAGE_KEY } from '@/lib/supabase';
 import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
 import { testSnapshot } from '@/lib/test-support/transactions';
-import { onSignedOut, SIGN_OUT_SERVER_WAIT_MS, signOut } from './api';
+import { SIGN_OUT_SERVER_WAIT_MS } from './api';
 import { readIdentity, saveIdentity } from './identityCache';
 
 // SEC-01 with the real supabase-js client (no mock of auth.signOut): what actually stays in
@@ -20,7 +20,7 @@ function expiredSession() {
     token_type: 'bearer',
     expires_in: 3600,
     expires_at: nowSeconds() - 3600,
-    refresh_token: 'refresh-token-of-the-previous-user',
+    refresh_token: `refresh-${crypto.randomUUID()}`, // unique: auth-js caches a failed refresh per token
     user: { id: USER_ID, aud: 'authenticated', role: 'authenticated', email: 'kasir@warungkasir.test', app_metadata: {}, user_metadata: {}, created_at: '2026-10-01T00:00:00Z' },
   };
 }
@@ -34,8 +34,16 @@ function setOnline(online: boolean) {
 }
 
 let fetchMock: ReturnType<typeof vi.fn>;
+// A fresh client per test: a refresh one test leaves hanging must not be joined by the next
+// (auth-js runs one refresh at a time per client).
+let getSupabase: typeof import('@/lib/supabase').getSupabase;
+let signOut: typeof import('./api').signOut;
+let onSignedOut: typeof import('./api').onSignedOut;
 
 beforeEach(async () => {
+  vi.resetModules();
+  ({ getSupabase } = await import('@/lib/supabase'));
+  ({ signOut, onSignedOut } = await import('./api'));
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://127.0.0.1:54321');
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test-fixture-not-a-real-key');
   fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
@@ -95,6 +103,33 @@ describe('signOut with an expired access token (SEC-01)', () => {
 
     expect(Date.now() - started).toBeLessThan(SIGN_OUT_SERVER_WAIT_MS + 2_000);
     expect(storedAuthKeys()).toEqual([]);
+  }, 15_000);
+});
+
+describe('a refresh that succeeds after logout gave up waiting (SEC-01 race)', () => {
+  it('does not bring the session back: auth-js discards tokens refreshed after the session was removed', async () => {
+    let answerRefresh: (response: Response) => void = () => {};
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      if (String(input).includes('grant_type=refresh_token')) {
+        return new Promise<Response>((resolve) => {
+          answerRefresh = resolve;
+        });
+      }
+      return Promise.reject(new TypeError('Failed to fetch'));
+    });
+
+    await signOut(); // the refresh is still waiting: logout gave up after SIGN_OUT_SERVER_WAIT_MS
+    expect(storedAuthKeys()).toEqual([]);
+
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('grant_type=refresh_token'))).toBe(true);
+
+    // The network comes back and the server answers the refresh with fresh tokens.
+    const fresh = { ...expiredSession(), access_token: 'new.access.token', refresh_token: 'rotated', expires_at: nowSeconds() + 3600 };
+    answerRefresh(new Response(JSON.stringify(fresh), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(storedAuthKeys()).toEqual([]);
+    expect((await getSupabase().auth.getSession()).data.session).toBeNull();
   }, 15_000);
 });
 

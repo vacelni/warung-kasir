@@ -146,3 +146,21 @@ describe('SignedOutNotice', () => {
     expect(container.textContent).toBe('');
   });
 });
+
+describe('before hydration (SEC-02)', () => {
+  it('the prerendered form posts and its submit button is disabled, so no credential can reach a URL', async () => {
+    const { renderToString } = await import('react-dom/server');
+    const html = renderToString(<LoginForm />);
+    const form = new DOMParser().parseFromString(html, 'text/html');
+
+    expect(form.querySelector('form')?.getAttribute('method')).toBe('post');
+    const submit = form.querySelector('button[type="submit"]');
+    expect(submit?.textContent).toBe('MASUK');
+    expect(submit?.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('after hydration the button is enabled', () => {
+    render(<LoginForm />);
+    expect((screen.getByRole('button', { name: 'MASUK' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+});

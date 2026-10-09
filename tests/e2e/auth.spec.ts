@@ -101,3 +101,30 @@ test('a session the server rejects sends the user back to login', async ({ page,
   await page.goto('/kasir');
   await expect(page).toHaveURL(/\/login$/);
 });
+
+test('SEC-02: before JavaScript runs, the login form cannot send the credentials anywhere', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, javaScriptEnabled: false });
+  const page = await context.newPage();
+  const urls: string[] = [];
+  page.on('request', (request) => urls.push(request.url()));
+  try {
+    await page.goto('/login');
+    const submit = page.getByRole('button', { name: 'MASUK' });
+    await expect(submit).toBeDisabled();
+    await expect(page.locator('form')).toHaveAttribute('method', 'post');
+
+    await page.getByLabel('Email').fill('audit@warungkasir.test');
+    await page.getByRole('textbox', { name: 'Password' }).fill('rahasia-12345');
+    await page.getByRole('textbox', { name: 'Password' }).press('Enter');
+    await submit.click({ trial: true, timeout: 1_000 }).catch(() => {}); // disabled: cannot be clicked
+    await page.waitForTimeout(1_000);
+
+    expect(new URL(page.url()).search).toBe('');
+    for (const url of urls) {
+      expect(url).not.toContain('rahasia');
+      expect(url).not.toContain('audit%40warungkasir');
+    }
+  } finally {
+    await context.close();
+  }
+});

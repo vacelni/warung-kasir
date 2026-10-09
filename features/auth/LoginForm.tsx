@@ -1,13 +1,16 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PasswordInput } from '@/components/ui/PasswordInput';
 import { AUTH_MESSAGES, signedOutNotice, validateCredentials, type CredentialErrors } from './account';
 import { hasStoredSession, signIn } from './api';
+
+/** `hydrated` never changes after hydration: nothing to subscribe to. */
+const noSubscription = () => () => {};
 
 export function LoginForm() {
   const router = useRouter();
@@ -16,6 +19,10 @@ export function LoginForm() {
   const [fieldErrors, setFieldErrors] = useState<CredentialErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  // False in the prerendered HTML: until React has attached the submit handler, the browser would
+  // submit the form itself and could put the credentials in a URL (SEC-02). A disabled default
+  // button also blocks submitting with Enter.
+  const hydrated = useSyncExternalStore(noSubscription, () => true, () => false);
 
   // An existing session goes straight to the cashier (PRD §11).
   useEffect(() => {
@@ -63,7 +70,9 @@ export function LoginForm() {
   }
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5" aria-busy={pending}>
+    // method="post": should the browser ever submit the form itself, the fields never go into a URL.
+    // CSP form-action 'none' (public/_headers) blocks such a submission entirely.
+    <form method="post" noValidate onSubmit={handleSubmit} className="flex flex-col gap-5" aria-busy={pending}>
       {formError && <Alert tone="danger">{formError}</Alert>}
 
       <Input
@@ -90,7 +99,7 @@ export function LoginForm() {
         error={fieldErrors.password}
       />
 
-      <Button type="submit" disabled={pending} className="w-full">
+      <Button type="submit" disabled={!hydrated || pending} className="w-full">
         {pending ? 'MEMPROSES…' : 'MASUK'}
       </Button>
     </form>

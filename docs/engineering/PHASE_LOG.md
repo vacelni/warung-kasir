@@ -128,3 +128,26 @@ Results:
 | `offline` + `offline-edge` projects (all offline specs) | 31 passed, 1 skipped (PWA install check on Edge, by design) |
 | auth + laporan + laporan.mutation on `360x800`, `static`, `mutations` | 23 passed, 1 skipped |
 | lint, typecheck | pass |
+
+## 12R.3 — SEC-02 login before hydration (2026-10-09)
+
+Changes: `features/auth/LoginForm.tsx` (`method="post"`; submit disabled until hydrated via
+`useSyncExternalStore` — a `useEffect` + `setState` version failed lint `react-hooks/set-state-in-effect`),
+`LoginForm.test.tsx` (+2), `tests/e2e/auth.spec.ts` (+1, JavaScript disabled).
+
+Follow-up to 12R.2 (background commit review flagged an "auth-session-race" in `api.ts`, without
+details). Analysis: a refresh that logout stopped waiting for could succeed later and save fresh
+tokens. auth-js 2.117.3 guards this (`_callRefreshToken` commit guard: storage changed since the
+refresh started → tokens discarded, `AuthRefreshDiscardedError`; post-save epoch check for a
+removal during the save). New unit test proves it end-to-end with the real client. While writing it,
+the test first passed trivially (no refresh request: the shared client singleton had a refresh
+left hanging by the previous test, and auth-js runs one refresh at a time); now each test loads a
+fresh client (`vi.resetModules`) and asserts the refresh request happened.
+
+Results:
+| Check | Result |
+|---|---|
+| `features/auth` unit tests | 6 files, 84 passed |
+| auth + smoke specs on `360x800`, `static`, `static-desktop` | 30 passed, 9 skipped (viewport restrictions) |
+| SEC-01 E2E (`offline`) after the LoginForm change | 2 passed |
+| lint, typecheck | pass |
