@@ -12,7 +12,7 @@ These engineering records track execution only and never override the specs.
 | Branch | `feature/warungkasir-launch-readiness` (from `a0ddd47`, Phase 11 checkpoint) |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
 | Current phase | 13-prep — release preparation (12R complete) |
-| Current sub-step | 13P.3 — debt and test holes (PagePlaceholder, RouteAccess, category validation, header sync indicator) |
+| Current sub-step | 13P.4 — CI coverage, RUNBOOK release procedure, release notes |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records

@@ -386,3 +386,11 @@ Tests: `receiptStore.test.ts` 5, `TransactionDetail.test.tsx` +2, `catalogCache.
 `pos/api.test.ts` +1 (menu still loads without store details), fixtures gained `store`.
 E2E: `history.spec.ts` receipt (`360x800`, `static`) 2 passed; `sync.offline.spec.ts` receipt offline
 (`offline`, `offline-edge`) 2 passed. Unit (transactions) 124 passed; lint, typecheck pass.
+
+## 13P.3 — Debt and test holes (2026-10-09)
+
+- Removed unused `components/shared/PagePlaceholder.tsx` (no importer).
+- New `features/auth/RouteAccess.test.tsx` (cashier allowed/denied routes with "Akses ditolak",
+  owner allowed) and `features/categories/validation.test.ts`.
+- Header sync indicator: already asserted in E2E (`sync.offline.spec.ts` banner "1 belum
+  tersinkron" and "1 gagal sinkron"); the coverage audit's "no E2E assertion" was inaccurate. No change.
