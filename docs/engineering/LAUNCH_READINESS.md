@@ -64,6 +64,6 @@ Status: ✅ met · ❌ not met · ⬜ not yet checked (external/manual).
 
 | Decision | Recommendation |
 |---|---|
-| Hosting: Cloudflare Pages vs Workers static assets (IMPLEMENTATION_PLAN §7) | Pages with Git integration, previews disabled (RUNBOOK §7.5) |
-| Dark mode (PRD §44 vs IMPLEMENTATION_PLAN §5) | Keep deferred until decided |
+| Hosting (IMPLEMENTATION_PLAN §7) | **Decided:** Cloudflare Pages, preview deployments disabled (RUNBOOK §7.5) |
+| Dark mode (PRD §44 vs IMPLEMENTATION_PLAN §5) | **Decided:** deferred until after launch |
 | Merge to `main` and add a git remote | Needed before Cloudflare Git builds; requires your approval |

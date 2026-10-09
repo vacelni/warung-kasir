@@ -252,15 +252,15 @@ project is configured by hand:
 
 Section 2 (owner bootstrap). Then sign in once on a phone to confirm.
 
-### 7.5 Cloudflare (recommended: Pages with Git integration)
+### 7.5 Cloudflare Pages (decided 2026-10-09), Git integration
 
 - Build command `npm run build` (never `npx next build`: it would skip `out/sw.js` and the CSP),
   output directory `out`, Node 24 (`NODE_VERSION=24`).
 - Environment variables (Production): `NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co`,
   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key>`. Nothing else; never a secret key.
-- **Preview deployments:** disable them (Builds → Branch control → no preview branches), or give the
-  Preview environment the variables of a separate, non-production Supabase project. A preview must
-  never talk to production data. Preview origins are not in `ALLOWED_ORIGINS`, so employee
+- **Preview deployments: disabled** (decided 2026-10-09; Builds → Branch control → no preview
+  branches). Never give a preview the production Supabase variables; previews must never talk to
+  production data. Preview origins are not in `ALLOWED_ORIGINS`, so employee
   management fails there by design.
 - Build on Cloudflare (Linux); never upload an `out/` built on Windows (section 1 note).
 - Custom domain (optional): add `Strict-Transport-Security: max-age=31536000; includeSubDomains`

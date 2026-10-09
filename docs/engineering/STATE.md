@@ -37,7 +37,7 @@ Every PRD §43 Must Have and AC-01..AC-15 is implemented and has tests (coverage
 
 | Item | Conflict / question | Status |
 |---|---|---|
-| Dark mode | PRD §44 lists it as Should Have; IMPLEMENTATION_PLAN §5 says "no dark mode" | Deferred by the user (2026-10-09). Not implemented; needs a product decision before any work |
+| Dark mode | PRD §44 lists it as Should Have; IMPLEMENTATION_PLAN §5 says "no dark mode" | **Decided (user, 2026-10-09): deferred until after launch.** Not part of the MVP release; revisit post-launch |
 
 ## User decisions recorded (2026-10-09)
 
@@ -48,6 +48,13 @@ Every PRD §43 Must Have and AC-01..AC-15 is implemented and has tests (coverage
 - INFO-3: verify the supported revocation mechanism first; test password reset, deactivation and reactivation separately; a revoked session must not regain access after reactivation; verify database, RPC and Edge Function authorization; outbox sales sync only after an authorized sign-in; claim only what tests prove.
 - Should Have to build: simple receipt view, history custom date range.
 - Branch name and commit policy as above.
+
+## Release decisions (user, 2026-10-09, second session)
+
+- Hosting: **Cloudflare Pages**. Preview deployments **disabled**; previews never connect to production.
+- Dark mode: deferred until after launch.
+- Not authorized yet: merge to `main`, git remote, push, production Supabase/Cloudflare projects,
+  deployment, linked database operations, hosted Auth changes, secrets.
 
 ## Known defects / debt
 

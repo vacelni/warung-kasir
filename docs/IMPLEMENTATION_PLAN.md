@@ -177,7 +177,7 @@
 - Money/cart/checkout logic lives once in `lib/`; components never compute money; the RPC re-validation is a security boundary, not duplication — do not add a third copy.
 - No Edge Function for anything RLS or an RPC can do.
 - No libraries from the TECH C.15 "not used" list without explicit justification.
-- No unrequested features (dark mode, background sync, push, printing, discount, cancel UI, images, i18n).
+- No unrequested features (dark mode, background sync, push, printing, discount, cancel UI, images, i18n). Dark mode (PRD §44 Should Have) is deferred until after launch (user decision, 2026-10-09).
 - No decorative gradients, glassmorphism, or animation that does not aid usability.
 - No whole-page snapshot tests; test behavior.
 
@@ -191,5 +191,5 @@ See SECURITY E.12.
 |---|---|
 | Service worker build tooling (one tool or hand-written) | Phase 10 — decided: hand-written `features/offline/sw.ts`, compiled with the project's TypeScript by `scripts/build-sw.mts` after `next build`; no new dependency |
 | Retention period for synced outbox entries | Phase 10 — decided: 7 days after server confirmation (`SYNCED_RETENTION_MS`); pending/syncing/failed are never removed |
-| Cloudflare Pages vs Workers static assets | Phase 13 — recommended (13-prep): Pages with Git integration, previews disabled (RUNBOOK §7.5); awaiting the user's decision |
+| Cloudflare Pages vs Workers static assets | Decided (user, 2026-10-09): **Cloudflare Pages**, preview deployments disabled (RUNBOOK §7.5) |
 | `docs/RUNBOOK.md` content | Phase 2 (created); release procedure §6–§9 written in 13-prep; exercised in Phase 13 |

@@ -49,7 +49,7 @@ All earlier migrations (Phases 2–8) are also unapplied in production: producti
 | Dev dependency advisory | `braces` via `eslint-config-next`, no compatible fix, lint-time only (INFO-2) |
 | CSP headroom | ~10 more pages/inline scripts before the policy line hits Cloudflare's 2,000 characters; the build then fails loudly |
 | CI | Playwright and Edge Function tests run locally only (RUNBOOK §6) |
-| Dark mode | Deferred: PRD §44 lists it, IMPLEMENTATION_PLAN §5 excludes it; needs a product decision |
+| Dark mode | Deferred until after launch (user decision, 2026-10-09) |
 | Free tier | Project pause and no automatic backups (RUNBOOK §5, §8) |
 
 ## Not yet verified (needs production or a real device)
