@@ -396,3 +396,21 @@ E2E: `history.spec.ts` receipt (`360x800`, `static`) 2 passed; `sync.offline.spe
   tersinkron" and "1 gagal sinkron"); the coverage audit's "no E2E assertion" was inaccurate. No change.
 
 - Flake found in the full unit run: `SyncStatus.test.tsx` "says so when everything is synced" (findBy default 1 s vs an IndexedDB read under a fully parallel run; passed alone 3/3). The four IndexedDB-backed `findBy*` in that file now wait up to 5 s; assertions unchanged. Note: the 13P.3 commit was made by a command chain that did not stop on that failure; the full suite was re-run twice after the fix.
+
+## 13P.4–13P.6 — CI, runbook, release notes, readiness (2026-10-09)
+
+- CI: Playwright and `test:functions` not added to GitHub Actions — they need the full Supabase
+  stack with the edge runtime, the Edge browser, and a temporarily raised sign-in rate limit, and an
+  Actions workflow cannot be run or verified from this machine (no remote). Recorded as a known
+  limitation; RUNBOOK §6 is the local release-candidate gate. (CI build job already got placeholder
+  env in 12R.4.)
+- RUNBOOK §6–§9: release-candidate verification, production deployment with every hosted step marked
+  for approval (project, link, dry-run push, push, read-only privilege/RLS checks, advisors, Auth
+  settings by hand — never `config push`, Edge Function secret + deploy + foreign-origin check,
+  owner bootstrap, Cloudflare Pages settings, preview isolation, HSTS), header check, smoke test
+  including SEC-01/02 and INFO-3, rollback, monitoring and incidents. No production value invented.
+- `RELEASE_NOTES.md` and `LAUNCH_READINESS.md` (PRD §53 DoD matrix; local READY, deployed NO,
+  production-verified NO). IMPLEMENTATION_PLAN §7 notes the hosting recommendation.
+
+**Phase 13-prep verdict: COMPLETE.** Phase 14 preparation (DoD matrix, device checklist, owner
+briefing items) is in `LAUNCH_READINESS.md` and RUNBOOK §7.7.

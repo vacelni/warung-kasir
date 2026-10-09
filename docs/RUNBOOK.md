@@ -1,6 +1,6 @@
 # WarungKasir — Runbook
 
-Operational procedures. Created in Phase 2; completed in Phase 13 (production deployment).
+Operational procedures. Created in Phase 2; release procedure added in Phase 13-prep (sections 6–9). Nothing here has been run against production yet.
 
 Production commands (`supabase db push`, `supabase functions deploy`, `supabase secrets set`, deploys) always require explicit approval (SECURITY E.13).
 
@@ -164,3 +164,160 @@ To restore:
 3. Check Riwayat/Laporan for the expected sales.
 
 The free tier has no automatic backups. The owner's regular CSV export (Backup / Export, Phase 9) is the only data export and is not a full disaster-recovery backup (PRD §27).
+
+---
+
+## 6. Release candidate verification (local, before any production step)
+
+On the commit to be deployed, with the local stack running (section 1):
+
+```bash
+npx supabase db reset            # target is local: supabase/.temp has no project-ref
+npm run lint && npm run typecheck && npm run test && npm run build
+npm run test:db && npm run test:functions
+npx playwright test              # full matrix; raise the sign-in rate limit only for the run (section 1)
+npx supabase db reset            # clean up after the data-changing specs
+npm audit --omit=dev             # must report 0
+npx supabase db advisors --local # must report no issues
+```
+
+Record the results in `docs/engineering/PHASE_LOG.md`. CI (GitHub Actions) runs lint, typecheck,
+unit, build and pgTAP only; Playwright and the function tests are local gates (they need the full
+Supabase stack with the edge runtime, the Edge browser, and a temporarily raised rate limit).
+
+---
+
+## 7. Production deployment (Phase 13) — every step needs explicit approval
+
+Placeholders: `<project-ref>`, `<production-origin>` (e.g. `https://<name>.pages.dev` or the custom
+domain), `<owner email>`. Never paste secret values into chat, docs or commits.
+
+**Order:** Supabase project → database → Auth settings → Edge Function → owner → Cloudflare →
+header check → smoke test. Do not open the app to staff before the smoke test passes.
+
+### 7.1 Supabase project and database
+
+1. Dashboard: create the project (region close to the warung, e.g. Singapore). Keep the database
+   password in a password manager only.
+2. `npx supabase link --project-ref <project-ref>` *(approval)*.
+3. `npx supabase db push --dry-run` *(approval)*: the list must be exactly the files in
+   `supabase/migrations/`. Never add `--include-seed` (the seed has test accounts and passwords).
+4. `npx supabase db push` *(approval)*.
+5. Read-only checks (SQL Editor):
+
+   ```sql
+   -- INFO-3: authorization needs these (expect t, t)
+   select has_table_privilege('postgres', 'auth.sessions', 'select'),
+          has_table_privilege('postgres', 'auth.sessions', 'delete');
+   -- SEC-08: no public function executable by anon (expect 0)
+   select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
+     and has_function_privilege('anon', p.oid, 'execute');
+   -- RLS on every business table (expect 6 rows, all true)
+   select relname, relrowsecurity from pg_class
+   where relnamespace = 'public'::regnamespace and relkind = 'r';
+   ```
+
+6. `npx supabase db advisors --linked` *(read-only)*: resolve every security finding before go-live.
+
+### 7.2 Auth settings (Dashboard → Authentication; do NOT use `supabase config push`)
+
+`supabase/config.toml` holds local-only values (local origins, test settings), so the hosted
+project is configured by hand:
+
+- Sign-ups: **off**. Anonymous sign-ins: **off**. Email provider: **on** (it is the login method).
+- Secure password change: **on** (SEC-04). Secure email change / double confirm: **on**.
+- Minimum password length: **8**. Rate limits: defaults (never the local test value 300).
+- JWT expiry: **3600** s. Site URL: `<production-origin>`; no extra redirect URLs (password login only).
+- API keys: the app uses the **publishable** key only. If the legacy anon/service_role JWT keys are
+  not used, disable them. The Edge Function reads `SUPABASE_SECRET_KEYS` (or the legacy
+  `SUPABASE_SERVICE_ROLE_KEY`) provided by the platform; never put it in the app.
+- Data API: exposed schemas `public` (and `graphql_public` only if GraphQL is kept). No Storage
+  buckets; Realtime not used.
+
+### 7.3 Edge Function
+
+1. `npx supabase secrets set ALLOWED_ORIGINS=<production-origin>` *(approval)*: the production
+   origin only; never localhost, never a preview domain.
+2. `npx supabase functions deploy admin-cashier` *(approval)*. `verify_jwt = true` (config.toml);
+   the function also checks the caller in code.
+3. Check (no data change): a POST from a foreign origin answers 403:
+
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+     -H "Origin: https://example.com" -H "Content-Type: application/json" \
+     https://<project-ref>.supabase.co/functions/v1/admin-cashier -d "{}"
+   ```
+
+### 7.4 Owner
+
+Section 2 (owner bootstrap). Then sign in once on a phone to confirm.
+
+### 7.5 Cloudflare (recommended: Pages with Git integration)
+
+- Build command `npm run build` (never `npx next build`: it would skip `out/sw.js` and the CSP),
+  output directory `out`, Node 24 (`NODE_VERSION=24`).
+- Environment variables (Production): `NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co`,
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key>`. Nothing else; never a secret key.
+- **Preview deployments:** disable them (Builds → Branch control → no preview branches), or give the
+  Preview environment the variables of a separate, non-production Supabase project. A preview must
+  never talk to production data. Preview origins are not in `ALLOWED_ORIGINS`, so employee
+  management fails there by design.
+- Build on Cloudflare (Linux); never upload an `out/` built on Windows (section 1 note).
+- Custom domain (optional): add `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+  to the `/*` rule of `public/_headers` in a commit before switching, and enable "Always Use
+  HTTPS". `*.pages.dev` is HSTS-preloaded through `.dev`.
+
+### 7.6 Header check (after the first deploy)
+
+```bash
+for p in / /login /kasir /riwayat/detail /tidak-ada /sw.js; do
+  echo "== $p"
+  curl -sI "<production-origin>$p" | grep -iE "^(HTTP|content-security-policy|x-frame-options|referrer-policy|permissions-policy|cross-origin-opener-policy|x-content-type-options|cache-control)"
+done
+```
+
+Expect one `Content-Security-Policy` per response whose `connect-src` names
+`https://<project-ref>.supabase.co`, plus the other headers; `/sw.js` with `Cache-Control: no-cache`.
+Open `/kasir.html` and confirm the redirect to `/kasir` carries the same headers. In Chrome DevTools
+→ Console: no "Content Security Policy" messages on Login, Kasir, Riwayat, Laporan, Backup.
+
+### 7.7 Production smoke test (TECHNICAL_SPEC H.6 + Phase 12 checks)
+
+1. Open the URL on Android Chrome; install to the home screen.
+2. Owner: login → Karyawan → create a cashier → log out.
+3. Cashier: login → add a product → checkout → success → Riwayat → detail → LIHAT STRUK.
+4. Owner: Laporan shows the sale; Backup → export the transactions CSV.
+5. Offline: airplane mode → sell → close the app → reopen → pending badge → network on → synced.
+6. SEC-01: offline for more than an hour (token expired), tap Keluar → login page; back online,
+   reopening the app shows the login page.
+7. SEC-02: Chrome DevTools → disable JavaScript → open `/login` → the MASUK button is disabled.
+8. INFO-3: the owner resets the cashier's password while the cashier's phone is open → that phone
+   goes to login at its next server contact; a pending sale syncs after the new login.
+9. Foreign-origin Edge Function call answers 403 (7.3).
+
+---
+
+## 8. Rollback
+
+- **App (Cloudflare):** Deployments → previous production deployment → Rollback. Instant; the old
+  version's service worker takes over at the next app launch. Pending sales stay in each device's
+  outbox.
+- **Database:** forward-only. Before each production migration the owner exports CSV (Backup /
+  Export) and the operator saves `npx supabase db dump --linked -f backup-<date>.sql` *(approval;
+  contains business data: store it privately, never in git)*. A faulty migration is fixed by a new
+  migration, never by editing an applied one.
+- **Edge Function:** redeploy the previous version from git *(approval)*:
+  `git checkout <commit> -- supabase/functions` then `npx supabase functions deploy admin-cashier`.
+- **Auth settings:** revert by hand in the Dashboard (record every change with its date).
+
+## 9. Monitoring and incidents (free tier)
+
+- Weekly: Supabase usage (database size, egress, MAU, Edge Function invocations); Cloudflare
+  requests. Near a free-tier limit: optimize first; never add paid services automatically (TECH H.8).
+- Supabase Dashboard → Logs: Auth (failed logins, rate limits), Edge Functions (`admin-cashier:`
+  lines never contain passwords or tokens), Postgres (`WK001`/`WK002`/`WK003`).
+- "Gagal sinkron" on a device: section 4 (WK002 = cashier inactive). WK003 after an owner action is
+  expected (sessions ended); the sale syncs after the cashier logs in again.
+- Suspected account compromise: the owner resets that cashier's password (ends all its sessions at
+  once, INFO-3); for the owner account, section 3 and `select public.revoke_user_sessions('<USER_UID>');`.
+- Supabase project paused: section 5.
