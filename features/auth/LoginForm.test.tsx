@@ -133,11 +133,11 @@ describe('LoginForm', () => {
 });
 
 describe('SignedOutNotice', () => {
-  it('explains a sign-out caused by an inactive account', () => {
+  it('explains a sign-out caused by the account check: deactivated or password reset (INFO-3)', () => {
     mocks.searchParams = new URLSearchParams('alasan=inactive');
     render(<SignedOutNotice />);
 
-    expect(screen.getByRole('status').textContent).toBe(AUTH_MESSAGES.inactive);
+    expect(screen.getByRole('status').textContent).toBe(AUTH_MESSAGES.accessEnded);
   });
 
   it('renders nothing without a reason', () => {

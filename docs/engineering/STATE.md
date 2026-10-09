@@ -11,8 +11,8 @@ These engineering records track execution only and never override the specs.
 | Mission | Launch readiness: Phase 12 remediation → release preparation → launch-audit preparation |
 | Branch | `feature/warungkasir-launch-readiness` (from `a0ddd47`, Phase 11 checkpoint) |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
-| Current phase | 12R — security remediation (see `ROADMAP.md`) |
-| Current sub-step | 12R.X — exit gate (12R.0–12R.14 done) |
+| Current phase | 13-prep — release preparation (12R complete) |
+| Current sub-step | 13P.1 — history custom date range (spec written in UI_SPEC A.15) |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records
@@ -31,7 +31,6 @@ Every PRD §43 Must Have and AC-01..AC-15 is implemented and has tests (coverage
 
 ## Not yet implemented / open
 
-- Phase 12 remediation items (see `SECURITY_TRACKER.md`).
 - PRD §44 Should Have chosen for launch by the user: simple receipt view; history custom date range.
 - Release preparation (runbook completion, production checklist) and launch-audit preparation.
 

@@ -39,6 +39,36 @@ export function findInlineAttribute(html: string): string | null {
   return match ? match[0].slice(0, 120) : null;
 }
 
+/** The .env files `next build` reads, highest precedence first (after the process environment). */
+export const PRODUCTION_ENV_FILES = ['.env.production.local', '.env.local', '.env.production', '.env'] as const;
+
+/** Value of `name` in one .env file's text (`KEY=value`, optional quotes or `export`), or undefined. */
+function envFileValue(text: string, name: string): string | undefined {
+  for (const line of text.split(/\r?\n/)) {
+    const match = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
+    if (!match || match[1] !== name) continue;
+    const raw = match[2] ?? '';
+    const quoted = /^(['"])(.*)\1$/.exec(raw);
+    return quoted ? quoted[2] : raw.replace(/\s+#.*$/, '');
+  }
+  return undefined;
+}
+
+/**
+ * The value `next build` inlined for `name`: the process environment wins, then the .env files in
+ * PRODUCTION_ENV_FILES order (`files` holds their texts in that order, null when a file is absent).
+ * Without @next/env, which is not a declared dependency (TECHNICAL_SPEC C.15).
+ */
+export function buildEnvValue(name: string, processEnv: Record<string, string | undefined>, files: ReadonlyArray<string | null>): string | undefined {
+  const fromProcess = processEnv[name];
+  if (fromProcess !== undefined && fromProcess !== '') return fromProcess;
+  for (const text of files) {
+    const value = text === null ? undefined : envFileValue(text, name);
+    if (value !== undefined && value !== '') return value;
+  }
+  return undefined;
+}
+
 /** Origin (scheme://host[:port]) of the Supabase project URL the bundle talks to. */
 export function supabaseOrigin(url: string | undefined): string {
   if (!url) throw new Error('NEXT_PUBLIC_SUPABASE_URL must be set to build the Content-Security-Policy.');

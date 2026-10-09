@@ -10,19 +10,19 @@ Status: ✅ met · ❌ not met · ⏳ in progress · ⬜ not yet checked.
 |---|---|---|
 | PRD §43 Must Have features | LOCAL — coverage audit + unit/E2E suites | ✅ (re-confirm at release candidate) |
 | AC-01..AC-15 | LOCAL — unit, pgTAP, Playwright | ✅ (re-confirm at release candidate) |
-| Transactions consistent and idempotent, incl. concurrent same-id | LOCAL — pgTAP 03; race test (12R.6) | ⏳ |
-| Offline sales survive logout, failures, reloads, reconnects | LOCAL — offline Playwright projects; 12R.2 | ⏳ |
+| Transactions consistent and idempotent, incl. concurrent same-id | LOCAL — pgTAP 03; `create-transaction-race.test.ts` | ✅ |
+| Offline sales survive logout, failures, reloads, reconnects | LOCAL — offline projects incl. SEC-01 and INFO-3 E2E | ✅ |
 | Should Have chosen for launch: receipt view, history custom range | LOCAL — 13-prep | ⬜ |
 
 ## Security
 
 | Requirement | Evidence | Status |
 |---|---|---|
-| No open Critical/High finding | `SECURITY_TRACKER.md` | ❌ SEC-01 open |
-| P0 findings fixed and tested | `SECURITY_TRACKER.md` | ❌ |
-| RLS, RPC, Edge Function, privileges tested | pgTAP, `test:functions` | ⏳ (SEC-05/08, INFO-3) |
-| No secret in bundles | LOCAL — `out/` scan; build refuses secret keys | ⬜ (re-run at exit gate) |
-| CSP and headers pass on the built app | LOCAL — headers spec + CSP guard | ❌ |
+| No open Critical/High finding | `SECURITY_TRACKER.md` | ✅ (local scope) |
+| P0 findings fixed and tested | `SECURITY_TRACKER.md` | ✅ |
+| RLS, RPC, Edge Function, privileges tested | pgTAP 365, `test:functions` 21 | ✅ |
+| No secret in bundles | LOCAL — `out/` scan at 12R exit gate | ✅ |
+| CSP and headers pass on the built app | LOCAL — headers spec + CSP guard on all static/offline projects | ✅ (production: EXTERNAL) |
 | Hosted Auth / API / function configuration | EXTERNAL — runbook checklist | ⬜ |
 
 ## Quality
@@ -30,8 +30,8 @@ Status: ✅ met · ❌ not met · ⏳ in progress · ⬜ not yet checked.
 | Requirement | Evidence | Status |
 |---|---|---|
 | lint, typecheck, unit, pgTAP, functions, build | LOCAL — baseline green on `a0ddd47` | ✅ baseline |
-| Full Playwright matrix | LOCAL | ⏳ |
-| No new skips / weakened assertions | `PHASE_LOG.md` review per sub-step | ⏳ |
+| Full Playwright matrix | LOCAL — 500 passed, 0 failed, 210 skipped (project restrictions) | ✅ (re-run at release candidate) |
+| No new skips / weakened assertions | `PHASE_LOG.md`: new skips are project restrictions only; assertions only tightened or changed for intended behavior (logged) | ✅ |
 | Production dependency audit = 0 | LOCAL — `npm audit --omit=dev` | ✅ baseline |
 
 ## Operations

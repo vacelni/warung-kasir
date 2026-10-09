@@ -101,7 +101,7 @@ describe('validateCredentials (UI_SPEC A.8 inline validation)', () => {
 describe('sign-out reasons on the login page', () => {
   it('round-trips through the login URL', () => {
     expect(loginPath(null)).toBe('/login');
-    expect(signedOutNotice(new URL(loginPath('inactive'), 'http://x').searchParams)).toBe(AUTH_MESSAGES.inactive);
+    expect(signedOutNotice(new URL(loginPath('inactive'), 'http://x').searchParams)).toBe(AUTH_MESSAGES.accessEnded);
     expect(signedOutNotice(new URL(loginPath('expired'), 'http://x').searchParams)).toBe(AUTH_MESSAGES.sessionExpired);
   });
 

@@ -407,6 +407,22 @@ filter tanggal dan pengelompokan hari menggunakan Asia/Jakarta (WIB);
 transaksi lokal yang belum tersinkron tampil dengan badge "Belum tersinkron" (atau "Gagal sinkron");
 detail dibuka melalui /riwayat/detail?id=<uuid>.
 
+Filter tanggal (PRD §44, Phase 13-prep):
+
+Hari Ini, Kemarin, 7 Hari Terakhir, 30 Hari Terakhir, Semua Tanggal, Rentang Tanggal;
+Rentang Tanggal menampilkan dua input tanggal (Dari, Sampai), keduanya termasuk, dalam hari Asia/Jakarta; aturan dan batasnya sama dengan Custom di Laporan (A.16): tanggal awal tidak boleh setelah tanggal akhir, maksimal 366 hari;
+rentang yang tidak valid menampilkan pesan dan tidak memuat data.
+
+Struk sederhana (PRD §44, Phase 13-prep):
+
+halaman detail transaksi memiliki tombol [ LIHAT STRUK ] yang menampilkan struk di layar (tanpa cetak):
+nama warung, alamat, telepon (yang diisi saja);
+kode transaksi, tanggal dan waktu WIB, nama kasir;
+item (nama × qty, subtotal), Total, Bayar, Kembalian;
+catatan struk (jika diisi);
+data warung diambil dari server saat online, atau dari snapshot katalog di perangkat saat offline (TECHNICAL_SPEC C.10); jika tidak tersedia, struk tetap tampil tanpa header warung;
+[ TUTUP STRUK ] kembali ke detail.
+
 Waktu penjualan yang perlu dicek (SEC-06, hanya Owner):
 
 transaksi tersinkron diberi badge "Cek waktu" bila waktu penjualannya lebih dari 5 menit setelah diterima server (jam perangkat maju), atau bila diterima server lebih dari 24 jam setelah waktu penjualan;

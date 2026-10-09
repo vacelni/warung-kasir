@@ -148,8 +148,12 @@ describe('syncOnce', () => {
     expect(mocks.signOut).toHaveBeenCalledOnce();
   });
 
-  it('WK003 while the refresh cannot reach the server: stays pending and signed in (retried later)', async () => {
-    mocks.refreshSession.mockResolvedValue({ data: { session: null }, error: new AuthRetryableFetchError('Failed to fetch', 0) });
+  it.each([
+    ['cannot reach the server', new AuthRetryableFetchError('Failed to fetch', 0)],
+    ['is rate limited (429)', new AuthApiError('Too many requests', 429, 'over_request_rate_limit')],
+    ['meets a server error (500)', new AuthApiError('Internal error', 500, 'unexpected_failure')],
+  ])('WK003 while the refresh %s: stays pending and signed in (retried later)', async (_, refreshError) => {
+    mocks.refreshSession.mockResolvedValue({ data: { session: null }, error: refreshError });
     await enqueueTransaction(testSnapshot());
     respond({ data: null, error: { code: 'WK003', message: 'create_transaction: the session has ended; sign in again' } });
 

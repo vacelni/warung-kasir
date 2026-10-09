@@ -6,11 +6,12 @@
  */
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import nextEnv from '@next/env';
 import {
+  buildEnvValue,
   contentSecurityPolicy,
   findInlineAttribute,
   inlineScripts,
+  PRODUCTION_ENV_FILES,
   scriptHash,
   supabaseOrigin,
   withContentSecurityPolicy,
@@ -25,9 +26,9 @@ async function htmlFiles(dir: string): Promise<string[]> {
 }
 
 async function main() {
-  // The same .env files, in the same order, that `next build` inlined into the bundle.
-  nextEnv.loadEnvConfig(root, false, { info: () => {}, error: console.error });
-  const supabase = supabaseOrigin(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  // The same value, from the same .env files in the same order, that `next build` inlined.
+  const files = await Promise.all(PRODUCTION_ENV_FILES.map((file) => readFile(path.join(root, file), 'utf8').catch(() => null)));
+  const supabase = supabaseOrigin(buildEnvValue('NEXT_PUBLIC_SUPABASE_URL', process.env, files));
   const pages = await htmlFiles(outDir);
   if (pages.length === 0) throw new Error('out/ has no HTML. Run `next build` first.');
 

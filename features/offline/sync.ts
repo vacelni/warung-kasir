@@ -1,4 +1,4 @@
-import { isAuthRetryableFetchError } from '@supabase/supabase-js';
+import { isAuthApiError } from '@supabase/supabase-js';
 import { signOut } from '@/features/auth/api';
 import { getSupabase } from '@/lib/supabase';
 import { listSyncable, markNotSynced, markSynced, markSyncing, type OutboxEntry } from './outbox';
@@ -39,13 +39,15 @@ export function classifySyncError(error: RpcError): SyncErrorKind {
 }
 
 /**
- * After WK003: asks the server for a new session. A network failure changes nothing (the sale stays
- * pending, sync retries). A refused refresh means the session is over; auth-js keeps a session whose
- * access token has not expired yet, so it is ended here (SIGNED_OUT → login, outbox untouched).
+ * After WK003: asks the server for a new session. Only an explicit refusal (400/401/403: refresh
+ * token gone, session not found, user banned) means the session is over; auth-js keeps a session
+ * whose access token has not expired yet, so it is ended here (SIGNED_OUT → login, outbox untouched).
+ * A network failure, a rate limit (429), or a server error changes nothing: the sale stays pending
+ * and sync retries.
  */
 async function confirmSessionWithServer(): Promise<void> {
   const { error } = await getSupabase().auth.refreshSession();
-  if (!error || isAuthRetryableFetchError(error)) return;
+  if (!error || !isAuthApiError(error) || ![400, 401, 403].includes(error.status)) return;
   console.warn('The server ended this session; signing in again is required:', error.message);
   await signOut();
 }

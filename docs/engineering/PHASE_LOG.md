@@ -310,3 +310,44 @@ INFO-2: `npm ls` path `eslint-config-next@16.4.0 → @next/eslint-plugin-next �
 micromatch@4.0.8 → braces@3.0.3`; advisory range `<=3.0.3`; 3.0.3 is the newest braces and 16.4.0
 the newest eslint-config-next → no compatible fix; npm's fix is a major downgrade (rejected).
 Documented in SECURITY E.12; production audit 0.
+
+## 12R.X — Exit gate (2026-10-09)
+
+Gates on `601ee6c` (local DB reset first):
+| Command | Result |
+|---|---|
+| lint, typecheck | pass |
+| `npm run test` | 64 files, 902 passed |
+| `npm run test:db` | 6 files, 365 passed |
+| `npm run test:functions` | 3 files, 21 passed |
+| `npm run build` | pass; CSP 19 hashes / 18 pages |
+| `npm audit --omit=dev` | 0 |
+| `supabase db advisors --local` | No issues found |
+| `out/` secret scan | no keys; the one `sb_secret_` match is supabase-js prefix-checking code; no source maps |
+| **full Playwright matrix (710 tests)** | **500 passed, 0 failed, 210 skipped, 0 did not run** (14.1 min) |
+
+Skips: 144 at baseline + 66 new, all project restrictions of new specs: `headers.spec.ts` 11 tests ×
+5 non-static read-only projects (55), `guard.spec.ts` on 6 non-360 projects (6), SEC-02 test in
+`auth.spec.ts` (360px only) on 5 projects (5). No test skips a feature.
+
+Independent review (read-only reviewer agent over `a0ddd47..HEAD`): no high-severity issue.
+Findings and dispositions:
+1. Medium — new storage key strands sessions under the old `sb-*-auth-token` key: **not applicable**,
+   nothing was ever deployed (no hosted project, no remote); local dev browsers only. No code.
+2. Low-medium — after WK003 any non-retryable refresh error (429, 500) signed out: **fixed**, only
+   400/401/403 end the session; `sync.test.ts` +2 cases.
+3. Low — a session ended by a password reset showed "Akun tidak aktif": **fixed** by wording. The
+   device cannot tell deactivation from a reset (both end the session); the login notice now says
+   "akun dinonaktifkan atau password diganti oleh Owner". (A logic change that called getUser was
+   tried and reverted: it turned the deactivation notice into "expired" and broke
+   `sync.offline.spec.ts` "cashier deactivated before sync".) Login errors unchanged.
+4. Low — `@next/env` imported but not declared: **fixed**, small env reader `buildEnvValue` with
+   Next's production file order; `scripts/headers.test.ts` +3.
+5. Note — CSP line headroom: documented in TECHNICAL_SPEC H.5 (build fails loudly when exceeded).
+
+After the fixes: `features/auth` 84 passed, `sync.test.ts` 34 passed, `scripts` 31 passed, build
+pass, lint/typecheck pass, `sync.offline.spec.ts` (`offline`) 12 passed, `auth.spec.ts` on
+`360x800` + `static` 18 passed.
+
+**Phase 12R verdict: COMPLETE.** All P0/P1 findings fixed with tests; P2 items implemented as
+decided or documented; no open Critical/High finding.

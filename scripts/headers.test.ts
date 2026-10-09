@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
+  buildEnvValue,
   contentSecurityPolicy,
   findInlineAttribute,
   inlineScripts,
@@ -135,5 +136,27 @@ describe('withContentSecurityPolicy', () => {
 
   it(`refuses a policy line longer than Cloudflare's ${MAX_HEADER_LINE} characters`, () => {
     expect(() => withContentSecurityPolicy(file, 'x'.repeat(MAX_HEADER_LINE))).toThrow(/Cloudflare allows/);
+  });
+});
+
+describe('buildEnvValue (the URL next build inlined, without @next/env)', () => {
+  const NAME = 'NEXT_PUBLIC_SUPABASE_URL';
+
+  it('prefers the process environment, then the files in Next.js production order', () => {
+    const files = ['NEXT_PUBLIC_SUPABASE_URL=https://prod-local.supabase.co', 'NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321', null, null];
+    expect(buildEnvValue(NAME, { [NAME]: 'https://from-env.supabase.co' }, files)).toBe('https://from-env.supabase.co');
+    expect(buildEnvValue(NAME, {}, files)).toBe('https://prod-local.supabase.co');
+    expect(buildEnvValue(NAME, {}, [null, 'NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321', null, null])).toBe('http://127.0.0.1:54321');
+  });
+
+  it('reads quoted values, export lines, CRLF files and trailing comments; ignores other keys and comments', () => {
+    const text = ['# comment', 'OTHER=x', 'export NEXT_PUBLIC_SUPABASE_URL="https://a.supabase.co" ', ''].join('\r\n');
+    expect(buildEnvValue(NAME, {}, [text])).toBe('https://a.supabase.co');
+    expect(buildEnvValue(NAME, {}, ["NEXT_PUBLIC_SUPABASE_URL='https://b.supabase.co'"])).toBe('https://b.supabase.co');
+    expect(buildEnvValue(NAME, {}, ['NEXT_PUBLIC_SUPABASE_URL=https://c.supabase.co # local'])).toBe('https://c.supabase.co');
+  });
+
+  it('is undefined when nothing sets it, so the build fails with a clear message', () => {
+    expect(buildEnvValue(NAME, { [NAME]: '' }, [null, 'OTHER=1', null, null])).toBeUndefined();
   });
 });

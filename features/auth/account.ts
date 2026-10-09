@@ -32,6 +32,9 @@ export const AUTH_MESSAGES = {
   invalidEmail: 'Format email tidak valid.',
   invalidCredentials: 'Email atau password salah.',
   inactive: 'Akun tidak aktif atau belum terdaftar. Hubungi Owner.',
+  // After the app ended a session because the account check failed. Deactivation and an owner's
+  // password reset both end the session on the server (INFO-3) and look the same to the device.
+  accessEnded: 'Akses di perangkat ini dihentikan: akun dinonaktifkan atau password diganti oleh Owner. Hubungi Owner.',
   offline: 'Koneksi internet diperlukan untuk masuk.',
   serverError: 'Server sedang bermasalah. Coba lagi sebentar lagi.',
   rateLimited: 'Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.',
@@ -82,7 +85,7 @@ export function loginPath(reason: SignedOutReason | null): string {
 export function signedOutNotice(searchParams: URLSearchParams): string | null {
   switch (searchParams.get(REASON_PARAM)) {
     case 'inactive':
-      return AUTH_MESSAGES.inactive;
+      return AUTH_MESSAGES.accessEnded;
     case 'expired':
       return AUTH_MESSAGES.sessionExpired;
     default:
