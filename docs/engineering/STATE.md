@@ -9,10 +9,10 @@ These engineering records track execution only and never override the specs.
 | Item | Value |
 |---|---|
 | Mission | Launch readiness: Phase 12 remediation → release preparation → launch-audit preparation |
-| Branch | `feature/warungkasir-launch-readiness` (from `a0ddd47`, Phase 11 checkpoint) |
+| Branch | `main` = `feature/warungkasir-launch-readiness` (fast-forward merge approved by the user, 2026-10-09). No git remote yet |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
 | Current phase | Release candidate verified locally (`81dfa99`) → waiting for approval of merge/remote and Phase 13 (production deployment) |
-| Current sub-step | none in progress. SEC-04 final review done (PHASE_LOG): recommend enabling "require current password" on the hosted project in Phase 13. Next, only with approval: merge to `main` (fast-forward), git remote, then RUNBOOK §7 |
+| Current sub-step | none in progress. SEC-04 final review done (PHASE_LOG): recommend enabling "require current password" on the hosted project in Phase 13. Merged to `main` (fast-forward). Next, only with approval: git remote + push, then RUNBOOK §7 |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records
@@ -53,7 +53,7 @@ Every PRD §43 Must Have and AC-01..AC-15 is implemented and has tests (coverage
 
 - Hosting: **Cloudflare Pages**. Preview deployments **disabled**; previews never connect to production.
 - Dark mode: deferred until after launch.
-- Not authorized yet: merge to `main`, git remote, push, production Supabase/Cloudflare projects,
+- Merge to `main`: approved and done (fast-forward). Not authorized yet: git remote, push, production Supabase/Cloudflare projects,
   deployment, linked database operations, hosted Auth changes, secrets.
 
 ## Known defects / debt
