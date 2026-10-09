@@ -12,7 +12,7 @@ These engineering records track execution only and never override the specs.
 | Branch | `feature/warungkasir-launch-readiness` (from `a0ddd47`, Phase 11 checkpoint) |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
 | Current phase | Release candidate verified locally (`81dfa99`) → waiting for approval of merge/remote and Phase 13 (production deployment) |
-| Current sub-step | SEC-04 final review (require current password) IN PROGRESS: see the last PHASE_LOG section for evidence and remaining steps. Merge/remote/production still need approval after it |
+| Current sub-step | none in progress. SEC-04 final review done (PHASE_LOG): recommend enabling "require current password" on the hosted project in Phase 13. Next, only with approval: merge to `main` (fast-forward), git remote, then RUNBOOK §7 |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records

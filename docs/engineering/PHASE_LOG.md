@@ -492,7 +492,7 @@ RUNBOOK §3 (dashboard). Supabase offers no setting or hook that disables self-s
 updates. No code change before launch; operational controls added to RUNBOOK §9 and SECURITY E.8
 (owner signs in only on the owner's own device, screen locks, Auth log review).
 
-## SEC-04 final review: "require current password" (2026-10-09, IN PROGRESS — checkpoint)
+## SEC-04 final review: "require current password" (2026-10-09) — checkpoint, then result below
 
 Static evidence gathered so far (no configuration or code changed):
 
@@ -519,3 +519,42 @@ Remaining steps:
    (expect `current_password_required`), update SECURITY E.8 and SECURITY_TRACKER SEC-04, and note
    that the local stack cannot mirror it with CLI 2.120.0. No app code change is needed (no
    self-service UI).
+
+### SEC-04 final review — result (2026-10-09)
+
+Documentation: Supabase's passwords guide documents only the client parameter
+("Verifying the current password": pass `current_password` to `updateUser()`, supabase-js v2.102.0+).
+It names no dashboard toggle, config key or env var. No public page names the server field; the
+only evidence of a hosted control is the Management API schema inside CLI 2.120.0
+(`security_update_password_require_current_password`). Dashboard location: **unconfirmed**.
+
+Behavioral test (isolated probe: a temporary clone of the local GoTrue v2.197.0 container on the
+same network and database, port 127.0.0.1:54399, with `GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD=true`
+plus the stack's `..._REQUIRE_REAUTHENTICATION=true`; throwaway `itest-cp-*` auth users; the probe,
+its copied environment file and the users were removed afterwards; the real stack was not changed):
+
+| Case | Result |
+|---|---|
+| Fresh session, `PUT /user {password}` without `current_password` | 400 `current_password_required` |
+| Fresh session, wrong `current_password` | 400 `current_password_invalid`; old password still logs in |
+| Fresh session, correct `current_password` | 200; new password logs in |
+| Session backdated 25 h, correct or missing `current_password` | 400 `reauthentication_needed` (both checks apply independently) |
+| Admin API `PUT /admin/users/{id} {password}` (the owner's reset through admin-cashier) | 200; owner-set password logs in — not affected |
+| Recovery: admin-generated recovery link → `/verify` → `PUT /user {password}` without `current_password` | 200 — a recovery session is exempt |
+
+Difference between the settings: `secure_password_change` (`..._REQUIRE_REAUTHENTICATION`) refuses
+password updates from sessions older than ~24 h unless a reauthentication nonce is given;
+"require current password" refuses every self-service update that does not carry the correct
+current password. Neither disables `PUT /user`: with the right credential the update succeeds.
+
+Assessment: enabling "require current password" closes the residual risk measured earlier (a
+fresh session alone can no longer take over the account) and does not affect the owner's reset or
+the owner's dashboard recovery (admin paths). The remaining path is the recovery flow, which needs
+access to the account's mailbox (cashier logins have none; owner recovery uses the dashboard).
+
+Decision: **no local change** — CLI 2.120.0 has no supported `config.toml` key, so the local stack
+cannot enforce it reproducibly (hand-editing containers would not be). **Recommended for the
+hosted project in Phase 13** (approval): enable it in the dashboard if the toggle exists, otherwise
+via the Management API field; verify with a read-only config read and the RUNBOOK §7.7 smoke check.
+The app has no self-service password screen, so no app or SDK change is needed; if one is ever
+added it must send `current_password` (snake_case, supported by the installed supabase-js 2.117.3).

@@ -226,6 +226,11 @@ project is configured by hand:
 
 - Sign-ups: **off**. Anonymous sign-ins: **off**. Email provider: **on** (it is the login method).
 - Secure password change: **on** (SEC-04). Secure email change / double confirm: **on**.
+- **Require current password when changing password: on** (SEC-04 final review). Use the dashboard
+  toggle if the project shows one (its location was not confirmed before deployment); otherwise the
+  Management API auth-config field `security_update_password_require_current_password: true`
+  *(approval)*. Confirm with a read-only read of the auth config. The local stack cannot enable it
+  (Supabase CLI 2.120.0 has no config key), so this is the one Auth setting that differs from local.
 - Minimum password length: **8**. Rate limits: defaults (never the local test value 300).
 - JWT expiry: **3600** s. Site URL: `<production-origin>`; no extra redirect URLs (password login only).
 - API keys: the app uses the **publishable** key only. If the legacy anon/service_role JWT keys are
@@ -294,6 +299,9 @@ Open `/kasir.html` and confirm the redirect to `/kasir` carries the same headers
 8. INFO-3: the owner resets the cashier's password while the cashier's phone is open → that phone
    goes to login at its next server contact; a pending sale syncs after the new login.
 9. Foreign-origin Edge Function call answers 403 (7.3).
+10. SEC-04: with a test cashier's fresh access token, `PUT https://<project-ref>.supabase.co/auth/v1/user`
+    with `{"password":"..."}` and no `current_password` must answer 400 `current_password_required`;
+    then the owner's reset of that cashier (Karyawan) must still work.
 
 ---
 

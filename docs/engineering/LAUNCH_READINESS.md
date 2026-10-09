@@ -37,7 +37,7 @@ Status: ✅ met · ❌ not met · ⬜ not yet checked (external/manual).
 | RLS, RPC, Edge Function, privileges tested | pgTAP 365, `test:functions` 21, race + session-lifecycle tests | ✅ |
 | No secret in bundles | `out/` scan at 12R exit; build refuses secret keys | ✅ |
 | CSP and headers pass on the built app | `headers.spec.ts` + CSP guard across static/offline projects | ✅ local / ⬜ production |
-| Hosted Auth / API / Edge Function / privileges configuration | RUNBOOK §7.1–7.3 | ⬜ EXTERNAL |
+| Hosted Auth / API / Edge Function / privileges configuration (incl. "require current password", SEC-04) | RUNBOOK §7.1–7.3, smoke §7.7 step 10 | ⬜ EXTERNAL |
 | Preview isolation, seed exclusion, HSTS/domain | RUNBOOK §7.1, §7.5 | ⬜ EXTERNAL |
 
 ## Quality

@@ -41,7 +41,7 @@ All earlier migrations (Phases 2–8) are also unapplied in production: producti
 
 | Item | Note |
 |---|---|
-| Self-service password change on a fresh session | The Auth API still allows it within ~24 h of sign-in; the app has no screen for it (SEC-04, SECURITY E.8) |
+| Self-service password change on a fresh session | Locally the Auth API still allows it within ~24 h of sign-in (no screen in the app). Closed in production by enabling "require current password" on the hosted project (RUNBOOK §7.2; recovery sessions and owner resets stay allowed) |
 | Offline logout | Removes the session from the device; the refresh token cannot be revoked server-side while offline (SECURITY E.9) |
 | Shared-device residue | Unsynced sales (and synced ones for 7 days) readable with devtools; no credentials (INFO-1) |
 | Sale time | From the device clock; flagged for the owner, never rejected (SEC-06); a clock set back < 24 h and synced at once is not flagged |
