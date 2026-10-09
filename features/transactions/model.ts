@@ -33,6 +33,8 @@ export type HistoryEntry = {
   source: 'server' | 'local';
   serverStatus: ServerStatus | null;
   syncStatus: SyncStatus | null;
+  /** When the server received the sale (ISO 8601); null for a sale only on this device. */
+  syncedAt: string | null;
 };
 
 /** One sold line, as frozen at the moment of sale (DATABASE D.7). */
@@ -74,6 +76,7 @@ export function fromOutbox(entry: OutboxEntry, cashierName: string): HistoryEntr
     source: 'local',
     serverStatus: null,
     syncStatus: entry.sync_status,
+    syncedAt: null,
   };
 }
 

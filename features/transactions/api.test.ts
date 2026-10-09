@@ -58,7 +58,8 @@ describe('listTransactions', () => {
     expect(select?.[1]).toContain('transaction_items(quantity)');
     expect(select?.[1]).not.toContain('product_name');
     expect(select?.[1]).not.toContain('unit_price');
-    expect(select?.[1]).not.toContain('synced_at');
+    // synced_at is read for the owner's sale-time check (SEC-06, UI_SPEC A.15).
+    expect(select?.[1]).toContain('synced_at');
   });
 
   it('owner: no cashier filter (RLS gives the whole store)', async () => {

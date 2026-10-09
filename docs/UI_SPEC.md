@@ -407,6 +407,13 @@ filter tanggal dan pengelompokan hari menggunakan Asia/Jakarta (WIB);
 transaksi lokal yang belum tersinkron tampil dengan badge "Belum tersinkron" (atau "Gagal sinkron");
 detail dibuka melalui /riwayat/detail?id=<uuid>.
 
+Waktu penjualan yang perlu dicek (SEC-06, hanya Owner):
+
+transaksi tersinkron diberi badge "Cek waktu" bila waktu penjualannya lebih dari 5 menit setelah diterima server (jam perangkat maju), atau bila diterima server lebih dari 24 jam setelah waktu penjualan;
+detail menampilkan "Diterima server" (WIB) dan alasannya;
+hanya penanda: waktu penjualan tidak diubah, transaksi tidak ditolak, dan tetap dihitung di laporan;
+Cashier tidak melihat badge ini.
+
 A.16 Dashboard
 
 Owner only.

@@ -9,6 +9,7 @@ import { TransactionDetail } from './TransactionDetail';
 import type { TransactionDetail as TransactionDetailData } from './model';
 
 const cashier: Profile = { id: 'cashier-1', storeId: 'store-a', name: 'Andi', role: 'cashier' };
+const owner: Profile = { id: 'owner-1', storeId: 'store-a', name: 'Bu Sari', role: 'owner' };
 
 const mocks = vi.hoisted(() => ({
   profile: null as unknown as Profile,
@@ -36,6 +37,7 @@ function serverDetail(overrides: Partial<TransactionDetailData> = {}): Transacti
     source: 'server',
     serverStatus: 'completed',
     syncStatus: null,
+    syncedAt: '2026-10-07T03:32:05+00:00',
     lines: [
       { productName: 'Es Teh', unitPrice: 5000, quantity: 2, subtotal: 10000 },
       { productName: 'Nasi Goreng', unitPrice: 15000, quantity: 2, subtotal: 30000 },
@@ -278,5 +280,37 @@ describe('TransactionDetail — missing, foreign, and failed', () => {
     const name = await screen.findByText(longName);
     expect(name.className).toContain('break-words');
     await waitFor(() => expect(screen.getByText('Rp15.000 × 1')).toBeTruthy());
+  });
+});
+
+describe('TransactionDetail — sale time check (SEC-06)', () => {
+  it('the owner sees when the server received the sale', async () => {
+    mocks.profile = owner;
+    mocks.getTransaction.mockResolvedValue(serverDetail());
+    renderDetail();
+
+    await screen.findByText('TRX-20261007-3F9A2C');
+    expect(value('Diterima server')).toBe('07/10/2026 10:32 WIB');
+    expect(screen.queryByText(/Cek waktu/)).toBeNull();
+  });
+
+  it('the owner gets the reason for a sale received more than 24 hours late; the sale time is unchanged', async () => {
+    mocks.profile = owner;
+    mocks.getTransaction.mockResolvedValue(serverDetail({ syncedAt: '2026-10-09T05:00:00+00:00' }));
+    renderDetail();
+
+    expect(await screen.findByText(/Diterima server lebih dari 24 jam setelah waktu penjualan/)).toBeTruthy();
+    expect(value('Waktu')).toBe('10:32 WIB');
+    expect(value('Diterima server')).toBe('09/10/2026 12:00 WIB');
+  });
+
+  it('the cashier sees neither the server time nor the check', async () => {
+    mocks.profile = cashier;
+    mocks.getTransaction.mockResolvedValue(serverDetail({ syncedAt: '2026-10-09T05:00:00+00:00' }));
+    renderDetail();
+
+    await screen.findByText('TRX-20261007-3F9A2C');
+    expect(screen.queryByText('Diterima server')).toBeNull();
+    expect(screen.queryByText(/Cek waktu/)).toBeNull();
   });
 });

@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { storedAccessToken } from './support/session';
+import { syncSaleAt } from './support/offline';
 import { expect, test, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
@@ -14,7 +12,6 @@ import { expect, test, type Page } from './support/test';
 const PASSWORD = 'password123';
 const OWNER = 'owner.a@warungkasir.test';
 const CASHIER = 'kasir1.a@warungkasir.test';
-const NASI_GORENG = 'd0000000-0000-4000-8000-000000000001';
 const NASI_GORENG_PRICE = 15000;
 
 // 12:00 WIB on 20 Jun 2026 is 05:00Z: the 12:00 hour bucket of that Jakarta day.
@@ -66,53 +63,6 @@ async function readDashboard(page: Page) {
   };
 }
 
-/** Supabase URL and publishable key for the direct request below, read the way the app reads them. */
-function supabaseEnv(): { url: string; key: string } {
-  let file = '';
-  try {
-    file = readFileSync(join(process.cwd(), '.env.local'), 'utf8');
-  } catch {
-    // Fall back to the process environment (CI).
-  }
-  const read = (name: string) =>
-    new RegExp(`^${name}=(.*)$`, 'm').exec(file)?.[1]?.trim() ?? process.env[name] ?? '';
-  return { url: read('NEXT_PUBLIC_SUPABASE_URL'), key: read('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') };
-}
-
-/**
- * Sends one sale to create_transaction with the signed-in cashier's own session: the call a device
- * makes when it syncs its outbox, here with a chosen sale time on a past day.
- */
-async function syncSale(page: Page, sale: { id: string; createdAt: string; quantity: number }) {
-  const token = await storedAccessToken(page);
-  expect(token, 'the cashier has a stored session').not.toBeNull();
-
-  const total = sale.quantity * NASI_GORENG_PRICE;
-  const { url, key } = supabaseEnv();
-  const response = await page.request.post(`${url}/rest/v1/rpc/create_transaction`, {
-    headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    data: {
-      p_id: sale.id,
-      p_code: `TRX-${PAST_DAY.replaceAll('-', '')}-${sale.id.slice(0, 6).toUpperCase()}`,
-      p_created_at: sale.createdAt,
-      p_total: total,
-      p_paid_amount: total,
-      p_change_amount: 0,
-      p_items: [
-        {
-          product_id: NASI_GORENG,
-          product_name: 'Nasi Goreng',
-          unit_price: NASI_GORENG_PRICE,
-          quantity: sale.quantity,
-          subtotal: total,
-        },
-      ],
-    },
-  });
-  expect(response.status()).toBe(200);
-  expect(await response.json()).toBe('created');
-}
-
 test('exact numbers: a synced sale on a past day adds its omzet, items and hour to the owner dashboard', async ({
   browser,
   baseURL,
@@ -131,7 +81,7 @@ test('exact numbers: a synced sale on a past day adds its omzet, items and hour 
     // The cashier's device syncs one sale of two Nasi Goreng made at 12:00 WIB on that day.
     const till = await cashierContext.newPage();
     await login(till, CASHIER);
-    await syncSale(till, { id: randomUUID(), createdAt: PAST_SALE_TIME, quantity: 2 });
+    await syncSaleAt(till, { id: randomUUID(), createdAt: PAST_SALE_TIME, quantity: 2 });
 
     await openLaporan(owner);
     await showDay(owner, PAST_DAY);

@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, type APIRequestContext, type BrowserContext, type Page } from './test';
 
+import { storedAccessToken } from './session';
+
 export { EXPIRED_AT, editStoredSession, storedAccessToken } from './session';
 
 // Shared steps for the *.offline.spec.ts files. They run against the production build served on
@@ -234,4 +236,35 @@ export async function goTo(page: Page, label: string) {
   }
   await openLainnya(page);
   await page.getByRole('main').getByRole('link', { name: label, exact: true }).click();
+}
+
+/** Nasi Goreng of store A in the dev seed. */
+export const SEED_NASI_GORENG = { id: 'd0000000-0000-4000-8000-000000000001', name: 'Nasi Goreng', price: 15000 };
+
+/**
+ * Sends one sale to create_transaction with the signed-in cashier's own session, exactly as a device
+ * syncs its outbox, but with a chosen sale time (e.g. a past day, or a device clock that is wrong).
+ */
+export async function syncSaleAt(page: Page, sale: { id: string; createdAt: string; quantity: number }) {
+  const token = await storedAccessToken(page);
+  expect(token, 'the cashier has a stored session').not.toBeNull();
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date(sale.createdAt)).replaceAll('-', '');
+  const total = sale.quantity * SEED_NASI_GORENG.price;
+  const { url, key } = supabaseEnv();
+  const response = await page.request.post(`${url}/rest/v1/rpc/create_transaction`, {
+    headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    data: {
+      p_id: sale.id,
+      p_code: `TRX-${day}-${sale.id.replaceAll('-', '').slice(0, 6).toUpperCase()}`,
+      p_created_at: sale.createdAt,
+      p_total: total,
+      p_paid_amount: total,
+      p_change_amount: 0,
+      p_items: [
+        { product_id: SEED_NASI_GORENG.id, product_name: SEED_NASI_GORENG.name, unit_price: SEED_NASI_GORENG.price, quantity: sale.quantity, subtotal: total },
+      ],
+    },
+  });
+  expect(response.status(), await response.text()).toBe(200);
+  expect(await response.json()).toBe('created');
 }

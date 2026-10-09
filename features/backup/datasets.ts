@@ -1,6 +1,7 @@
 import type { CsvCell } from '@/lib/csv';
 import { getSupabase } from '@/lib/supabase';
 import { formatJakartaDate, formatJakartaTime, formatJakartaTimestamp, jakartaDateKey } from '@/lib/time';
+import { saleTimeFlag } from '@/lib/saleTimeFlag';
 
 /**
  * The six CSV exports of Backup / Export (PRD §27, decision C26/C27, TEST_PLAN G.18): store,
@@ -132,6 +133,8 @@ async function loadTransactions(storeId: string): Promise<ExportTable> {
       'tanggal_wib',
       'waktu_wib',
       'synced_at',
+      // SEC-06: '' (plausible), 'future' (sold > 5 min after the server received it), 'late' (> 24 h).
+      'time_flag',
     ],
     rows: rows.map((r) => {
       const soldAt = new Date(r.created_at);
@@ -149,6 +152,7 @@ async function loadTransactions(storeId: string): Promise<ExportTable> {
         formatJakartaDate(soldAt),
         formatJakartaTime(soldAt),
         timestamp(r.synced_at),
+        saleTimeFlag(r.created_at, r.synced_at) ?? '',
       ];
     }),
   };

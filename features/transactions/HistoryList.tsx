@@ -19,6 +19,7 @@ import {
   type DatePreset,
   type HistoryOrder,
 } from './filters';
+import { useProfile } from '@/features/auth/AuthProvider';
 import { groupByDay } from './model';
 import { TransactionCard } from './TransactionCard';
 import { useTransactions } from './useTransactions';
@@ -45,6 +46,7 @@ const PERIOD_PHRASES: Record<DatePreset, string> = {
 
 /** The history screen: search by code, date filter, sort, the merged list, and "load more" (UI_SPEC A.15). */
 export function HistoryList() {
+  const isOwner = useProfile().role === 'owner';
   const [searchInput, setSearchInput] = useState('');
   const [preset, setPreset] = useState<DatePreset>('today');
   const [order, setOrder] = useState<HistoryOrder>('newest');
@@ -135,7 +137,7 @@ export function HistoryList() {
                 <ul className="flex flex-col gap-3">
                   {group.entries.map((entry) => (
                     <li key={entry.id}>
-                      <TransactionCard entry={entry} />
+                      <TransactionCard entry={entry} showTimeFlag={isOwner} />
                     </li>
                   ))}
                 </ul>

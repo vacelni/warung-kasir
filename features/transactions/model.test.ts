@@ -29,6 +29,7 @@ function serverEntry(id: string, createdAt: string, overrides: Partial<HistoryEn
     source: 'server',
     serverStatus: 'completed',
     syncStatus: null,
+    syncedAt: createdAt,
     ...overrides,
   };
 }
@@ -56,6 +57,7 @@ describe('fromOutbox', () => {
       source: 'local',
       serverStatus: null,
       syncStatus: 'failed',
+      syncedAt: null,
     });
   });
 

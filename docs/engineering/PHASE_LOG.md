@@ -286,3 +286,27 @@ Decision applied (user): no self-service UI. Documented precisely (SECURITY E.8)
 not disable self-service password change. `enable_confirmations` left false (it governs sign-up
 confirmation; sign-up is off; email change already needs confirmation). Guard test in
 `supabase/config.test.ts`.
+
+## 12R.11 — SEC-06 sale-time flag (2026-10-09)
+
+Spec first: UI_SPEC A.15, DATABASE D.10, PRD §20. New `lib/saleTimeFlag.ts` (pure); `HistoryEntry.syncedAt`
+(server rows; null for device rows), history API reads `synced_at`; owner-only "Cek waktu" badge on
+the card, reason Alert + "Diterima server" row on the detail; CSV `time_flag` column. No schema
+change, no rejection, `created_at` untouched. The history `api.test` expectation "list does not read
+synced_at" changed to "reads it" on purpose (needed for the flag; names and prices still not read).
+
+Tests: `lib/saleTimeFlag.test.ts` 6, HistoryList +2, TransactionDetail +3, datasets +1 (and the
+column list), E2E `history.mutation.spec.ts` SEC-06 (cashier sees nothing; owner sees badge, reason,
+unchanged sale time). `history.mutation` + `laporan.mutation` on `mutations`: 6 passed (the
+dashboard spec's direct-RPC helper moved to `support/offline.ts` `syncSaleAt` and is shared).
+
+Found: 17 working-tree files had CRLF endings (index LF, `core.autocrlf=true`); normalized to LF
+in the working tree (no content change in git).
+
+## 12R.13 — INFO-1 and 12R.14 — INFO-2 (2026-10-09)
+
+INFO-1: SECURITY E.12 accepted-risk entry; RUNBOOK §4 shared-device guidance. No auto-deletion.
+INFO-2: `npm ls` path `eslint-config-next@16.4.0 → @next/eslint-plugin-next → fast-glob@3.3.1 →
+micromatch@4.0.8 → braces@3.0.3`; advisory range `<=3.0.3`; 3.0.3 is the newest braces and 16.4.0
+the newest eslint-config-next → no compatible fix; npm's fix is a major downgrade (rejected).
+Documented in SECURITY E.12; production audit 0.

@@ -145,7 +145,10 @@ Do not delete auth users who have a profile; the database blocks it so historica
 - A device's pending sales are sent only by the cashier who made them, signed in on that same device. Logging out with pending sales shows a warning; *Tetap keluar* keeps them for that cashier's next login.
 - Do not clear site data, uninstall the PWA, or reset the phone while Lainnya shows unsynced sales: the outbox is on the device only. The app asks the browser for persistent storage; Chrome may still refuse it (best effort).
 - App updates: after a deploy, an open app keeps running the version it started with. The new version downloads in the background and is used from the next launch (close the app completely — all tabs/windows — and open it again). It never switches in the middle of a sale.
-- Deploy with `npm run build` (it writes `out/sw.js`); see TECHNICAL_SPEC H.5.
+- Deploy with `npm run build` (it writes `out/sw.js` and the CSP in `out/_headers`); see TECHNICAL_SPEC H.5.
+- After the owner resets a cashier's password (or deactivates and reactivates them), that cashier's devices are sent to login at their next contact with the server. Their pending sales stay on the device and sync after they sign in again (INFO-3).
+- Shared till devices (INFO-1, SECURITY E.12): use the phone only for the shop, keep the screen lock on, and do not use its browser for anything else. Unsynced sales (and synced ones for 7 days) stay readable on the device for anyone with developer tools; they contain no passwords.
+- **Cek waktu** in Riwayat (owner only, SEC-06): the sale time came from a device clock that was ahead of the server by more than 5 minutes, or the sale reached the server more than 24 hours later. Check the device's date/time setting with the cashier. The sale itself is valid and counted in the reports under its sale time.
 
 ## 5. Free-tier pause and restore
 

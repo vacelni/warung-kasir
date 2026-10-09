@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { syncSaleAt } from './support/offline';
 import { expect, FAILED_REQUEST, test, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
@@ -305,4 +307,36 @@ test('paging: more than one page of sales loads page by page with no repeat and 
   );
   expect(new Set(oldestIds).size).toBe(oldestIds.length);
   expect(oldestIds.filter((id) => mine.has(id))).toEqual([...expectedOrder].reverse());
+});
+
+test('SEC-06: a sale dated ahead of the server is flagged for the owner, unchanged, and invisible to the cashier', async ({ page, browser, baseURL }) => {
+  // A device clock 10 minutes fast: the sale time is later than the moment the server receives it.
+  const id = randomUUID();
+  const soldAt = new Date(Date.now() + 10 * 60_000);
+  await login(page, CASHIER);
+  await syncSaleAt(page, { id, createdAt: soldAt.toISOString(), quantity: 1 });
+  const code = id.replaceAll('-', '').slice(0, 6).toUpperCase();
+  const time = new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(soldAt).replace('.', ':');
+
+  // The cashier: the sale as usual, no check, no server time.
+  await page.goto(`/riwayat/detail?id=${id}`);
+  await expect(rowValue(page, 'Total')).toHaveText('Rp15.000');
+  await expect(page.getByText(/Cek waktu/)).toHaveCount(0);
+  await expect(page.getByText('Diterima server', { exact: true })).toHaveCount(0);
+
+  // The owner: the card and the detail say why to check; the sale time is the device's, unchanged.
+  const context = await browser.newContext({ baseURL });
+  const owner = await context.newPage();
+  try {
+    await login(owner, 'owner.a@warungkasir.test');
+    await owner.goto('/riwayat');
+    await owner.getByRole('searchbox').fill(code);
+    await expect(historyCard(owner, code)).toContainText('Cek waktu');
+    await historyCard(owner, code).click();
+    await expect(owner.getByText(/Waktu penjualan lebih dari 5 menit setelah diterima server/)).toBeVisible();
+    await expect(rowValue(owner, 'Waktu')).toHaveText(`${time} WIB`);
+    await expect(rowValue(owner, 'Diterima server')).toBeVisible();
+  } finally {
+    await context.close();
+  }
 });

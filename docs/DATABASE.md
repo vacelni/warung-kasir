@@ -201,6 +201,8 @@ Batas hari bisnis menggunakan Asia/Jakarta (mis. (created_at at time zone 'Asia/
 
 Laporan dan perhitungan penjualan menggunakan created_at (waktu penjualan), bukan synced_at.
 
+Penanda waktu (SEC-06): created_at berasal dari jam perangkat. Transaksi ditandai (tidak ditolak, tidak diubah) bila created_at > synced_at + 5 menit, atau synced_at − created_at > 24 jam. Penanda dihitung dari kolom yang tersimpan (tidak ada kolom baru), ditampilkan untuk Owner di Riwayat dan diekspor sebagai kolom time_flag (future/late) pada CSV transaksi.
+
 D.11 Grants
 
 Ditulis eksplisit di migration (tidak mengandalkan default):

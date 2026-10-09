@@ -649,6 +649,8 @@ Waktu                10:32 WIB
 
 Tanggal dan waktu adalah waktu penjualan (`created_at`) dalam Asia/Jakarta.
 
+Untuk Owner, transaksi yang waktu penjualannya tidak wajar dibanding waktu diterima server diberi penanda "Cek waktu" (UI_SPEC A.15, SEC-06). Penanda tidak mengubah atau menolak transaksi.
+
 ---
 
 # 21. Dashboard / Laporan

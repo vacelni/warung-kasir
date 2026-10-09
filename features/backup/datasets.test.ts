@@ -107,6 +107,7 @@ describe('datasets', () => {
       'tanggal_wib',
       'waktu_wib',
       'synced_at',
+      'time_flag',
     ]);
     expect(table.rows).toEqual([
       [
@@ -123,8 +124,28 @@ describe('datasets', () => {
         '11/08/2026',
         '00:30',
         '2026-08-11T00:31:00.000+07:00',
+        '',
       ],
     ]);
+  });
+
+  it('flags sale times to check in time_flag, without changing them (SEC-06)', async () => {
+    const row = (id: string, created_at: string, synced_at: string) => ({
+      id, store_id: STORE, code: 'TRX-X', cashier_id: 'c1', status: 'completed', total: 1, paid_amount: 1, change_amount: 0,
+      created_at, synced_at, cashier: { name: 'Andi' },
+    });
+    useDatabase(
+      onePage([
+        row('ahead', '2026-08-10T17:40:00+00:00', '2026-08-10T17:30:00+00:00'),
+        row('late', '2026-08-08T10:00:00+00:00', '2026-08-10T10:00:00+00:00'),
+        row('ok', '2026-08-10T17:30:00+00:00', '2026-08-10T17:30:05+00:00'),
+      ]),
+    );
+    const table = await dataset('transactions').load(STORE);
+    const flag = table.columns.indexOf('time_flag');
+    const soldAt = table.columns.indexOf('created_at');
+    expect(table.rows.map((r) => [r[0], r[flag]])).toEqual([['ahead', 'future'], ['late', 'late'], ['ok', '']]);
+    expect(table.rows[0]![soldAt]).toBe('2026-08-11T00:40:00.000+07:00');
   });
 
   it('exports products with their category name, inactive ones included', async () => {

@@ -34,10 +34,10 @@ export type HistoryPage = { entries: HistoryEntry[]; next: Cursor | null };
 // The cashier name comes from the profile embed; a list page carries only item quantities (to
 // count units), never product names or prices.
 const LIST_COLUMNS =
-  'id, code, cashier_id, total, paid_amount, change_amount, status, created_at, cashier:profiles!transactions_cashier_id_fkey(name), transaction_items(quantity)';
+  'id, code, cashier_id, total, paid_amount, change_amount, status, created_at, synced_at, cashier:profiles!transactions_cashier_id_fkey(name), transaction_items(quantity)';
 
 const DETAIL_COLUMNS =
-  'id, code, cashier_id, total, paid_amount, change_amount, status, created_at, cashier:profiles!transactions_cashier_id_fkey(name), transaction_items(product_name, unit_price, quantity, subtotal)';
+  'id, code, cashier_id, total, paid_amount, change_amount, status, created_at, synced_at, cashier:profiles!transactions_cashier_id_fkey(name), transaction_items(product_name, unit_price, quantity, subtotal)';
 
 type BaseRow = {
   id: string;
@@ -48,6 +48,7 @@ type BaseRow = {
   change_amount: number;
   status: string;
   created_at: string;
+  synced_at: string;
   cashier: { name: string } | null;
 };
 
@@ -66,6 +67,7 @@ function toEntry(row: BaseRow, itemCount: number): HistoryEntry {
     source: 'server',
     serverStatus: row.status,
     syncStatus: null,
+    syncedAt: row.synced_at,
   };
 }
 

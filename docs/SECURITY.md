@@ -238,6 +238,10 @@ Session token di localStorage: konsekuensi arsitektur SPA statis. Mitigasi: tanp
 
 Export CSV bukan backup disaster-recovery yang lengkap dan tidak ada fitur restore pada MVP.
 
+Sisa data di perangkat bersama (INFO-1): outbox IndexedDB menyimpan transaksi yang belum tersinkron milik setiap Cashier yang pernah login di perangkat itu, dan transaksi tersinkron selama 7 hari (lalu dipangkas). Siapa pun yang dapat membuka devtools di perangkat itu dapat membacanya (kode, item, harga, total; tanpa credential). Identitas yang di-cache (nama, role, store) dan katalog dihapus saat logout; outbox sengaja tidak dihapus agar penjualan tidak hilang. Data ini tidak memberi akses ke server: semua akses tetap melalui session yang valid dan RLS. Mitigasi operasional (RUNBOOK): perangkat kasir hanya untuk warung, terkunci layar, dan tidak dipakai untuk browsing lain. Penghapusan otomatis tidak dipakai sebagai pengganti autentikasi.
+
+Advisory dependency development (INFO-2): npm audit melaporkan braces ≤ 3.0.3 (GHSA-vfj7-8cjw-p6xm, DoS pada pola glob bertingkat) melalui eslint-config-next 16.4.0 → @next/eslint-plugin-next → fast-glob → micromatch. Tidak ada versi braces yang sudah diperbaiki; perbaikan yang disarankan npm adalah downgrade major ke eslint-config-next 14, yang tidak dilakukan. Hanya berjalan saat lint pada pola milik proyek sendiri; tidak masuk bundle produksi (npm audit --omit=dev = 0). Ditinjau ulang setiap kali dependency diperbarui.
+
 Free tier Supabase: project dapat di-pause setelah tidak aktif dan tidak memiliki backup otomatis. Transaksi tetap aman di outbox perangkat sampai project dipulihkan (prosedur di runbook).
 
 E.13 Development Safeguards

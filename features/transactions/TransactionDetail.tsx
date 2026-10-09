@@ -10,6 +10,8 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { BackHeader } from '@/features/pos/BackHeader';
 import { formatRupiah, type Money } from '@/lib/money';
+import { useProfile } from '@/features/auth/AuthProvider';
+import { SALE_TIME_FLAG_REASONS, saleTimeFlag } from '@/lib/saleTimeFlag';
 import { formatJakartaDate, formatJakartaTime } from '@/lib/time';
 import type { TransactionDetail as TransactionDetailData } from './model';
 import { StatusBadges } from './StatusBadges';
@@ -74,6 +76,10 @@ export function TransactionDetail() {
 
 function DetailBody({ detail }: { detail: TransactionDetailData }) {
   const soldAt = new Date(detail.createdAt);
+  // SEC-06: only the owner checks sale times; nothing changes for the cashier.
+  const isOwner = useProfile().role === 'owner';
+  const timeFlag = isOwner ? saleTimeFlag(detail.createdAt, detail.syncedAt) : null;
+  const receivedAt = isOwner && detail.syncedAt ? new Date(detail.syncedAt) : null;
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
@@ -85,6 +91,12 @@ function DetailBody({ detail }: { detail: TransactionDetailData }) {
       </Card>
 
       <SyncNotice detail={detail} />
+      {timeFlag && (
+        <Alert tone="warning">
+          <span className="font-semibold">Cek waktu. </span>
+          {SALE_TIME_FLAG_REASONS[timeFlag]}
+        </Alert>
+      )}
 
       <Card padded={false}>
         <h2 className="px-4 pt-4 text-section-title font-semibold text-foreground">Pesanan</h2>
@@ -116,6 +128,9 @@ function DetailBody({ detail }: { detail: TransactionDetailData }) {
           <InfoRow label="Kasir" value={detail.cashierName ?? '–'} />
           <InfoRow label="Tanggal" value={formatJakartaDate(soldAt)} />
           <InfoRow label="Waktu" value={`${formatJakartaTime(soldAt)} WIB`} />
+          {receivedAt && (
+            <InfoRow label="Diterima server" value={`${formatJakartaDate(receivedAt)} ${formatJakartaTime(receivedAt)} WIB`} />
+          )}
         </dl>
       </Card>
     </div>

@@ -38,6 +38,7 @@ function serverEntry(id: string, createdAt: string, overrides: Partial<HistoryEn
     source: 'server',
     serverStatus: 'completed',
     syncStatus: null,
+    syncedAt: createdAt,
     ...overrides,
   };
 }
@@ -125,6 +126,29 @@ describe('HistoryList — server transactions', () => {
     render(<HistoryList />);
 
     expect((await screen.findByRole('link', { name: /3F9A2C/ })).textContent).toContain('Dibatalkan');
+  });
+});
+
+describe('HistoryList — sale time check (SEC-06)', () => {
+  // Sold 10:32 WIB; the server received it 6 minutes earlier (device clock ahead) → flagged.
+  const ahead = serverEntry(A, '2026-10-07T03:32:00.000Z', { syncedAt: '2026-10-07T03:26:00.000Z' });
+  const normal = serverEntry(B, '2026-10-07T03:40:00.000Z', { syncedAt: '2026-10-07T03:40:02.000Z' });
+
+  it('the owner sees "Cek waktu" on a flagged sale only', async () => {
+    mocks.profile = owner;
+    mocks.listTransactions.mockResolvedValue(page([ahead, normal]));
+    render(<HistoryList />);
+
+    expect((await screen.findByRole('link', { name: /3F9A2C/ })).textContent).toContain('Cek waktu');
+    expect(screen.getByRole('link', { name: /8C41E0/ }).textContent).not.toContain('Cek waktu');
+  });
+
+  it('a cashier never sees it', async () => {
+    mocks.profile = cashier;
+    mocks.listTransactions.mockResolvedValue(page([ahead]));
+    render(<HistoryList />);
+
+    expect((await screen.findByRole('link', { name: /3F9A2C/ })).textContent).not.toContain('Cek waktu');
   });
 });
 

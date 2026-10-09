@@ -1,11 +1,17 @@
 import Link from 'next/link';
+import { Badge } from '@/components/ui/Badge';
 import { formatRupiah } from '@/lib/money';
+import { saleTimeFlag } from '@/lib/saleTimeFlag';
 import { formatJakartaTime } from '@/lib/time';
 import { StatusBadges } from './StatusBadges';
 import type { HistoryEntry } from './model';
 
-/** One sale in the history list (UI_SPEC A.15). The whole card opens the detail page. */
-export function TransactionCard({ entry }: { entry: HistoryEntry }) {
+/**
+ * One sale in the history list (UI_SPEC A.15). The whole card opens the detail page.
+ * `showTimeFlag`: the owner sees "Cek waktu" on a sale whose time needs checking (SEC-06).
+ */
+export function TransactionCard({ entry, showTimeFlag = false }: { entry: HistoryEntry; showTimeFlag?: boolean }) {
+  const timeFlagged = showTimeFlag && saleTimeFlag(entry.createdAt, entry.syncedAt) !== null;
   return (
     <Link
       href={`/riwayat/detail?id=${entry.id}`}
@@ -20,7 +26,10 @@ export function TransactionCard({ entry }: { entry: HistoryEntry }) {
       </span>
       <span className="mt-1 flex items-center justify-between gap-3">
         <span className="min-w-0 truncate text-body text-muted">Kasir: {entry.cashierName ?? '–'}</span>
-        <StatusBadges entry={entry} />
+        <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {timeFlagged && <Badge tone="warning">Cek waktu</Badge>}
+          <StatusBadges entry={entry} />
+        </span>
       </span>
     </Link>
   );
