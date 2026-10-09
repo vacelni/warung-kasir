@@ -491,3 +491,31 @@ out the real user. Cashier account: the owner recovers at once (reset). Owner ac
 RUNBOOK §3 (dashboard). Supabase offers no setting or hook that disables self-service password
 updates. No code change before launch; operational controls added to RUNBOOK §9 and SECURITY E.8
 (owner signs in only on the owner's own device, screen locks, Auth log review).
+
+## SEC-04 final review: "require current password" (2026-10-09, IN PROGRESS — checkpoint)
+
+Static evidence gathered so far (no configuration or code changed):
+
+| Component | Version | Finding |
+|---|---|---|
+| `@supabase/supabase-js`, `@supabase/auth-js` | 2.117.3 | `UserAttributes.current_password` (snake_case, not `currentPassword`); `updateUser()` sends attributes unchanged in `PUT /user`. Type comment ties it to `GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD`. |
+| Local GoTrue | v2.197.0 | Binary contains config `update_password_require_current_password` and error codes `current_password_required`, `current_password_invalid`: the server supports it. Local container env has only `..._REQUIRE_REAUTHENTICATION=true`. |
+| Supabase CLI (`supabase.exe`, run by `npx supabase`) | 2.120.0 | `[auth.email]` schema has no current-password key; `secure_password_change` maps only to `GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION`. The hosted Management API schema has a separate `security_update_password_require_current_password` ("Require the user's current password when updating their password"). |
+
+Interim conclusions: the two settings are distinct (reauthentication for sessions > 24 h vs current
+password on every self-service change); neither is proven to disable `PUT /user`. The local stack
+cannot enable the current-password requirement through supported config with CLI 2.120.0; the
+hosted project can (Management API field; dashboard location not yet confirmed — web search hit the
+session usage limit).
+
+Remaining steps:
+1. Confirm the hosted dashboard location in current Supabase docs.
+2. Behavioral test on an isolated local probe: a temporary GoTrue container cloned from
+   `supabase_auth_warung-kasir` (same image/network/DB) plus
+   `GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD=true`, on its own host port; test
+   missing / incorrect / correct `current_password`, its interaction with reauthentication (> 24 h
+   session), an admin-API reset (owner flow), and an admin-generated recovery link; remove the probe.
+3. If confirmed: add the hosted setting to RUNBOOK §7.2 and a production smoke check to §7.7
+   (expect `current_password_required`), update SECURITY E.8 and SECURITY_TRACKER SEC-04, and note
+   that the local stack cannot mirror it with CLI 2.120.0. No app code change is needed (no
+   self-service UI).
