@@ -1,53 +1,69 @@
 # Launch Readiness
 
-Evidence column: **LOCAL** = proven by a local test/run (command in `PHASE_LOG.md`), **EXTERNAL**
-= needs the production project/hosting, **MANUAL** = needs the user or a real device.
-Status: ✅ met · ❌ not met · ⏳ in progress · ⬜ not yet checked.
+Evidence: **LOCAL** = proven by a local test/run (commands and counts in `PHASE_LOG.md`),
+**EXTERNAL** = needs the production project/hosting, **MANUAL** = needs the user or a real device.
+Status: ✅ met · ❌ not met · ⬜ not yet checked (external/manual).
 
-## Functional
+## States (reported separately)
 
-| Requirement | Evidence | Status |
+| State | Status |
+|---|---|
+| Ready for deployment — local evidence | **READY** (release candidate on `feature/warungkasir-launch-readiness`; re-run RUNBOOK §6 on the exact commit before deploying) |
+| Deployed | **NO** — no hosted Supabase project, no Cloudflare project, no git remote |
+| Verified in production | **NO** — RUNBOOK §7.6–7.7 after an approved deployment |
+
+## PRD §53 Definition of Done
+
+| DoD line | Evidence | Status |
 |---|---|---|
-| PRD §43 Must Have features | LOCAL — coverage audit + unit/E2E suites | ✅ (re-confirm at release candidate) |
-| AC-01..AC-15 | LOCAL — unit, pgTAP, Playwright | ✅ (re-confirm at release candidate) |
-| Transactions consistent and idempotent, incl. concurrent same-id | LOCAL — pgTAP 03; `create-transaction-race.test.ts` | ✅ |
-| Offline sales survive logout, failures, reloads, reconnects | LOCAL — offline projects incl. SEC-01 and INFO-3 E2E | ✅ |
-| Should Have chosen for launch: receipt view, history custom range | LOCAL — unit + E2E (13P.1, 13P.2) | ✅ |
+| All Must Have features available | LOCAL — coverage audit (PHASE_LOG) + unit/E2E | ✅ |
+| Owner and Cashier roles work | LOCAL — `RouteAccess.test.tsx`, `shell.spec.ts`, pgTAP 02 | ✅ |
+| Transactions can be created; total and change correct | LOCAL — `lib/*.test.ts`, pgTAP 03, golden path E2E | ✅ |
+| Transactions saved; history opens | LOCAL — `history*.spec.ts`, pgTAP 04 | ✅ |
+| Dashboard shows real data | LOCAL — `laporan*.spec.ts`, pgTAP 05 | ✅ |
+| Owner manages the menu; cashier access limited | LOCAL — `menu*.spec.ts`, pgTAP 02/06 | ✅ |
+| No cross-store data access | LOCAL — pgTAP 02/04/05/06 | ✅ |
+| Opens on Android; PWA installable | LOCAL — `pwa.offline.spec.ts` (Chromium install check); MANUAL — real Android Chrome | ✅ local / ⬜ device |
+| Basic transactions work offline; offline data syncs | LOCAL — `sync.offline.spec.ts`, `pwa.offline.spec.ts` (Chromium + Edge); MANUAL — real device | ✅ local / ⬜ device |
+| Export works | LOCAL — `admin.spec.ts`, `datasets.test.ts`, `csv.test.ts` | ✅ |
+| No mandatory paid dependency | LOCAL — dependency list; free-tier design (TECH H.8) | ✅ |
 
 ## Security
 
 | Requirement | Evidence | Status |
 |---|---|---|
-| No open Critical/High finding | `SECURITY_TRACKER.md` | ✅ (local scope) |
-| P0 findings fixed and tested | `SECURITY_TRACKER.md` | ✅ |
-| RLS, RPC, Edge Function, privileges tested | pgTAP 365, `test:functions` 21 | ✅ |
-| No secret in bundles | LOCAL — `out/` scan at 12R exit gate | ✅ |
-| CSP and headers pass on the built app | LOCAL — headers spec + CSP guard on all static/offline projects | ✅ (production: EXTERNAL) |
-| Hosted Auth / API / function configuration | EXTERNAL — runbook checklist | ⬜ |
+| No open Critical/High finding (reviewed scope) | `SECURITY_TRACKER.md`; independent review at 12R exit | ✅ |
+| P0 findings fixed and tested (SEC-01/02/03/09) | Tracker + tests that fail on the old code | ✅ |
+| RLS, RPC, Edge Function, privileges tested | pgTAP 365, `test:functions` 21, race + session-lifecycle tests | ✅ |
+| No secret in bundles | `out/` scan at 12R exit; build refuses secret keys | ✅ |
+| CSP and headers pass on the built app | `headers.spec.ts` + CSP guard across static/offline projects | ✅ local / ⬜ production |
+| Hosted Auth / API / Edge Function / privileges configuration | RUNBOOK §7.1–7.3 | ⬜ EXTERNAL |
+| Preview isolation, seed exclusion, HSTS/domain | RUNBOOK §7.1, §7.5 | ⬜ EXTERNAL |
 
 ## Quality
 
 | Requirement | Evidence | Status |
 |---|---|---|
-| lint, typecheck, unit, pgTAP, functions, build | LOCAL — baseline green on `a0ddd47` | ✅ baseline |
-| Full Playwright matrix | LOCAL — 500 passed, 0 failed, 210 skipped (project restrictions) | ✅ (re-run at release candidate) |
-| No new skips / weakened assertions | `PHASE_LOG.md`: new skips are project restrictions only; assertions only tightened or changed for intended behavior (logged) | ✅ |
-| Production dependency audit = 0 | LOCAL — `npm audit --omit=dev` | ✅ baseline |
+| lint, typecheck, unit (942), pgTAP (365), functions (21), build | LOCAL — latest runs in PHASE_LOG | ✅ |
+| Full Playwright matrix | LOCAL — 500 passed / 0 failed at 12R exit; affected specs re-run after each later change | ✅ (re-run on the release commit, RUNBOOK §6) |
+| No new feature skips; no weakened assertions | PHASE_LOG: new skips are project restrictions; changed expectations logged with reasons | ✅ |
+| Production dependency audit = 0 | `npm audit --omit=dev` | ✅ |
+| Dev dependency advisories | INFO-2: documented, no compatible fix | ✅ documented |
 
 ## Operations
 
 | Requirement | Evidence | Status |
 |---|---|---|
-| Migrations reviewed, replay from zero | LOCAL — `supabase db reset` + pgTAP | ✅ baseline |
-| Deployment, backup, recovery, rollback instructions current | RUNBOOK (13-prep) | ⬜ |
-| Production configuration checklist | RUNBOOK (13-prep) | ⬜ |
-| Production smoke test | EXTERNAL — after approved deployment | ⬜ |
-| Real Android device test | MANUAL | ⬜ |
+| Migrations reviewed; replay from zero | `supabase db reset` + pgTAP; RELEASE_NOTES migration list | ✅ |
+| Deployment, backup, recovery, rollback instructions | RUNBOOK §2, §3, §5, §6–§9 | ✅ written / ⬜ exercised |
+| Production smoke test | RUNBOOK §7.7 | ⬜ EXTERNAL |
+| Real Android device test | RUNBOOK §7.7 steps 1, 5, 6 | ⬜ MANUAL |
+| Owner briefing: CSV export routine, free-tier pause, shared-device guidance, "Cek waktu" | RUNBOOK §4, §5, §9 | ⬜ MANUAL |
 
-## States
+## Open decisions for the user
 
-| State | Status |
+| Decision | Recommendation |
 |---|---|
-| Ready for deployment (local evidence) | NOT READY |
-| Deployed | NO |
-| Verified in production | NO |
+| Hosting: Cloudflare Pages vs Workers static assets (IMPLEMENTATION_PLAN §7) | Pages with Git integration, previews disabled (RUNBOOK §7.5) |
+| Dark mode (PRD §44 vs IMPLEMENTATION_PLAN §5) | Keep deferred until decided |
+| Merge to `main` and add a git remote | Needed before Cloudflare Git builds; requires your approval |
