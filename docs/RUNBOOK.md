@@ -212,8 +212,11 @@ header check → smoke test. Do not open the app to staff before the smoke test 
    -- INFO-3: authorization needs these (expect t, t)
    select has_table_privilege('postgres', 'auth.sessions', 'select'),
           has_table_privilege('postgres', 'auth.sessions', 'delete');
-   -- SEC-08: no public function executable by anon (expect 0)
+   -- SEC-08: no public function executable by anon (expect 0). Event-trigger functions are excluded:
+   -- the platform's public.rls_auto_enable (event trigger ensure_rls, auto-enables RLS on new
+   -- tables) cannot be run by a direct call or through /rest/v1/rpc (checked 2026-10-09).
    select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
+     and p.prorettype <> 'event_trigger'::regtype
      and has_function_privilege('anon', p.oid, 'execute');
    -- RLS on every business table (expect 6 rows, all true)
    select relname, relrowsecurity from pg_class
@@ -221,6 +224,9 @@ header check → smoke test. Do not open the app to staff before the smoke test 
    ```
 
 6. `npx supabase db advisors --linked` *(read-only)*: resolve every security finding before go-live.
+   Accepted warnings (2026-10-09): `create_transaction` is SECURITY DEFINER and callable by
+   `authenticated` by design (DATABASE D.9); `rls_auto_enable` is the platform's event-trigger function
+   (not callable as RPC; do not modify it).
 
 ### 7.2 Auth settings (Dashboard → Authentication; do NOT use `supabase config push`)
 

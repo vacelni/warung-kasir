@@ -571,3 +571,7 @@ added it must send `current_password` (snake_case, supported by the installed su
 | Hosted versions | GoTrue v2.197.0 (= local), Postgres 17.11.0.003 (local 17.11.0.004), PostgREST v14.18 |
 | `db push --dry-run` | exactly the 8 migrations, seeds: none, roles: none; nothing changed |
 | INFO-3 privilege pre-check (SQL Editor, run by the user) | `postgres` SELECT on `auth.sessions` = true, DELETE = true |
+| `db push` (approved) | 8 migrations applied, no errors; seeds none, roles none; re-run dry-run: "Remote database is up to date" |
+| Post-push checks (SQL Editor, run by the user) | RLS on all 6 business tables; SEC-08: the only `public` function `anon` can execute is the platform's `rls_auto_enable` (event trigger `ensure_rls`, auto-enables RLS) |
+| `db advisors --linked` | 3 WARN, 0 ERROR: `create_transaction` SECURITY DEFINER callable by authenticated (intended, D.9); `rls_auto_enable` callable by anon/authenticated (platform object) |
+| `rls_auto_enable` assessment | Local rolled-back test with an equivalent event-trigger function granted to anon: a direct call (PERFORM) never runs the body (a body that raises did not raise); a FROM call (PostgREST RPC style) fails with "unsupported return type event_trigger". Not exploitable; left unchanged (platform-owned auto-RLS). RUNBOOK §7.1 SEC-08 check now excludes event-trigger functions |

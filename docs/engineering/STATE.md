@@ -10,10 +10,10 @@ These engineering records track execution only and never override the specs.
 |---|---|
 | Mission | Launch readiness: Phase 12 remediation → release preparation → launch-audit preparation |
 | Branch | `main` (= `feature/warungkasir-launch-readiness`), pushed to `origin` = https://github.com/vacelni/kasir.git (private; push approved 2026-10-09) |
-| Production Supabase project | ref `ojzhdnoknssbmlkejpha` (created by the user). Not linked yet; no migration applied |
+| Production Supabase project | ref `ojzhdnoknssbmlkejpha` ("kasir"), linked; all 8 migrations applied and verified (RUNBOOK §7.1 done) |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
 | Current phase | Release candidate verified locally (`81dfa99`) → waiting for approval of merge/remote and Phase 13 (production deployment) |
-| Current sub-step | none in progress. SEC-04 final review done (PHASE_LOG): recommend enabling "require current password" on the hosted project in Phase 13. Merged and pushed. Next: the user runs `supabase login` + `supabase link` (interactive, password never in chat); then RUNBOOK §7.1 step 3 (dry-run push) with approval |
+| Current sub-step | none in progress. SEC-04 final review done (PHASE_LOG): recommend enabling "require current password" on the hosted project in Phase 13. RUNBOOK §7.1 done. Next: §7.2 Auth settings (the user, in the dashboard), then §7.3 Edge Function secret + deploy (approval) |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records
