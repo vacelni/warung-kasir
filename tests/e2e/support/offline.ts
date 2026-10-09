@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { expect, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from './test';
 
 // Shared steps for the *.offline.spec.ts files. They run against the production build served on
-// port 3200 (playwright.config.ts) and the local Supabase stack with the dev seed.
+// port 3000 (playwright.config.ts) and the local Supabase stack with the dev seed.
 
 export const PASSWORD = 'password123';
 export const KASIR1 = { email: 'kasir1.a@warungkasir.test', id: 'a2000000-0000-4000-8000-000000000001', name: 'Andi' };
@@ -78,10 +78,13 @@ export type Entry = {
   store_id: string;
   created_at: string;
   total: number;
+  paid_amount: number;
+  change_amount: number;
   sync_status: string;
   attempts: number;
   last_error: string | null;
-  items: Array<{ product_id: string; unit_price: number; quantity: number; subtotal: number }>;
+  last_attempt_at: string | null;
+  items: Array<{ product_id: string; product_name: string; unit_price: number; quantity: number; subtotal: number }>;
 };
 
 function idb<T>(page: Page, store: string, action: 'getAll'): Promise<T[]> {
@@ -203,3 +206,31 @@ export async function openLainnya(page: Page) {
 }
 
 export const syncStatus = (page: Page) => page.getByRole('region', { name: 'Status sinkronisasi' });
+
+/** Fires the browser's `online` event: the sync manager's trigger for "the network is back". */
+export function signalOnline(page: Page) {
+  return page.evaluate(() => window.dispatchEvent(new Event('online')));
+}
+
+const BOTTOM_TABS = new Set(['Kasir', 'Riwayat', 'Laporan', 'Lainnya']);
+
+/**
+ * Opens a screen the way a user of this viewport would: the sidebar on a tablet or desktop (every
+ * screen is in it), the bottom navigation on a phone (the four tabs, and the rest through Lainnya).
+ */
+export async function goTo(page: Page, label: string) {
+  const sidebar = page.getByRole('navigation', { name: 'Navigasi samping' });
+  const bottom = page.getByRole('navigation', { name: 'Navigasi utama' });
+  // Both exist in the page; CSS shows one. Wait for the shell before choosing.
+  await expect(sidebar.or(bottom)).toBeVisible();
+  if (await sidebar.isVisible()) {
+    await sidebar.getByRole('link', { name: label, exact: true }).click();
+    return;
+  }
+  if (BOTTOM_TABS.has(label)) {
+    await page.getByRole('navigation', { name: 'Navigasi utama' }).getByRole('link', { name: label, exact: true }).click();
+    return;
+  }
+  await openLainnya(page);
+  await page.getByRole('main').getByRole('link', { name: label, exact: true }).click();
+}

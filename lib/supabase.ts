@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 export type Supabase = SupabaseClient<Database>;
 
@@ -30,6 +31,8 @@ export function getSupabase(): Supabase {
       // Password login only; there are no OAuth/magic-link redirects to parse.
       detectSessionInUrl: false,
     },
+    // Every request (data, auth, Edge Function) ends in an answer or an error, never a hang.
+    global: { fetch: fetchWithTimeout() },
   });
   return client;
 }

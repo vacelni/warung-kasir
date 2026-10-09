@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
 // Seed store A: Nasi Goreng 15.000, Es Teh 5.000. Read-only: this spec never presses BAYAR, so it
@@ -28,6 +28,7 @@ async function expectTouchTarget(locator: Locator, minHeight = 48) {
 const card = (page: Page, name: string) => page.getByRole('main').getByRole('button', { name: new RegExp(`^${name}`) });
 
 test('payment screen: total, numeric input, shortfall, quick amounts set the value, fits the phone', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 0) >= 768, 'checks the phone layout (bottom navigation); the desktop layout has its own spec');
   await login(page, CASHIER);
 
   // Nasi Goreng ×2 + Es Teh ×2 = Rp40.000.

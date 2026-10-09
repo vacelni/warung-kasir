@@ -58,6 +58,18 @@ describe('loginErrorMessage (PRD §38)', () => {
     );
   });
 
+  it('maps a timeout or an aborted request (no answer at all) to the connection-required message', () => {
+    expect(loginErrorMessage(new AuthRetryableFetchError('The operation was aborted.', 0))).toBe(AUTH_MESSAGES.offline);
+  });
+
+  it('maps an HTTP 5xx answer to a server-problem message, not to "internet required"', () => {
+    for (const status of [500, 502, 503, 504]) {
+      const message = loginErrorMessage(new AuthRetryableFetchError('Service unavailable', status));
+      expect(message).toBe(AUTH_MESSAGES.serverError);
+      expect(message).not.toBe(AUTH_MESSAGES.offline);
+    }
+  });
+
   it('maps rate limiting', () => {
     expect(loginErrorMessage(new AuthApiError('Too many', 429, 'over_request_rate_limit'))).toBe(
       AUTH_MESSAGES.rateLimited,

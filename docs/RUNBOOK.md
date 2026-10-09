@@ -49,9 +49,17 @@ npm run test          # unit + component tests (no Supabase needed)
 npm run build
 npm run test:db       # pgTAP: schema, constraints, grants, RLS (needs local Supabase)
 npm run test:e2e      # Playwright; auth flows need local Supabase + seed + .env.local;
-                      # the offline/PWA specs build out/ and serve it on :3200 (tests/e2e/support/static-server.mts)
+                      # the offline/PWA specs build out/ and serve it on :3000 (tests/e2e/support/static-server.mts)
 npm run test:functions  # admin-cashier Edge Function over real HTTP (needs the local stack + Docker)
 ```
+
+**Full E2E matrix (Phase 11).** `npx playwright test` runs, in order: the read-only specs on the 360/390/412px phones, on 1280px Chromium and Microsoft Edge (`msedge` channel), and on the production build in `out/` (`static`, `static-desktop`); then the data-changing specs on Chromium, Edge and the static build (`mutations`, `mutations-edge`, `static-mutations`); then the offline/service-worker specs (`offline`, `offline-edge`). Notes:
+
+- Run `npx supabase db reset` before a full run and after it: the data-changing specs leave sales, products and one cashier behind. The empty-state specs create and remove their own stores (`tests/e2e/support/global-setup.ts`, through `docker exec` into the local database container).
+- The `out/` projects are served by `tests/e2e/support/static-server.mts` (Cloudflare-style clean URLs and `_headers`), not `next dev`.
+- `next build` on **Windows** writes Next's prefetch files (`__next.<segments>.txt`) as nested folders, so a Windows-built `out/` makes the browser's prefetch requests 404 (the test server maps them). By reading Next's export code, a Linux build (Cloudflare's) should write the names the browser asks for, but this has **not** been verified with a real Linux/Cloudflare build: check it in Phase 13. Until then, deploy through Cloudflare's Git build, never by uploading a `out/` built on Windows.
+- The `out/` server uses port 3000, an origin the admin-cashier function already accepts locally, so `supabase/config.toml` needs no test-only origin. Stop any `next dev` on :3000 before a full run.
+- **Sign-in rate limit.** The full matrix signs in far more than the default `[auth.rate_limit] sign_in_sign_ups = 30` (per 5 minutes per IP) allows. For a full run only, edit that one value to `300` in your working copy, `npx supabase stop && npx supabase start -x …`, run the suite, then **put the value back to `30`** (`git checkout supabase/config.toml`) and restart the stack. Never commit the raised value: `supabase config push` would send it to the hosted project (it is a deployment-facing setting). A unit test (`supabase/config.test.ts`) fails while the file holds a loosened value or an extra origin. The Supabase CLI has no `--config` override, so this local edit is the supported route.
 
 ### Edge Function (admin-cashier)
 

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
 // Each viewport project signs in once per role: 2 sign-ins x 3 projects stays well under the
@@ -28,6 +28,7 @@ async function expectTouchTarget(locator: ReturnType<Page['locator']>, minHeight
 }
 
 test('owner shell: four tabs, Lainnya contents, no overflow, 48px targets', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 0) >= 768, 'checks the phone layout (bottom navigation); the desktop layout has its own spec');
   await login(page, OWNER);
 
   const bottomNav = page.getByRole('navigation', { name: 'Navigasi utama' });
@@ -58,6 +59,7 @@ test('owner shell: four tabs, Lainnya contents, no overflow, 48px targets', asyn
 });
 
 test('cashier shell: three tabs, limited Lainnya, owner pages denied (AC-07)', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 0) >= 768, 'checks the phone layout (bottom navigation); the desktop layout has its own spec');
   await login(page, CASHIER);
 
   const bottomNav = page.getByRole('navigation', { name: 'Navigasi utama' });

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, FAILED_REQUEST, test, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed (`npx supabase start`,
 // `npx supabase db reset`) and .env.local pointing at it. See docs/RUNBOOK.md.
@@ -32,14 +32,16 @@ test('empty fields are validated inline', async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test('a wrong password is rejected', async ({ page }) => {
+test('a wrong password is rejected', async ({ page, allowConsoleError }) => {
+  allowConsoleError(FAILED_REQUEST); // the 400 the server answers with
   await login(page, 'owner.a@warungkasir.test', 'salah-password');
 
   await expect(page.getByRole('main').getByRole('alert')).toHaveText('Email atau password salah.');
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test('an unknown email is rejected with the same message', async ({ page }) => {
+test('an unknown email is rejected with the same message', async ({ page, allowConsoleError }) => {
+  allowConsoleError(FAILED_REQUEST);
   await login(page, 'tidak.ada@warungkasir.test');
 
   await expect(page.getByRole('main').getByRole('alert')).toHaveText('Email atau password salah.');
@@ -85,7 +87,8 @@ test('a cashier signs in and sees their own name', async ({ page }) => {
   await expect(page.getByRole('banner')).toContainText('Andi');
 });
 
-test('a session the server rejects sends the user back to login', async ({ page }) => {
+test('a session the server rejects sends the user back to login', async ({ page, allowConsoleError }) => {
+  allowConsoleError(FAILED_REQUEST);
   await login(page, 'kasir2.a@warungkasir.test');
   await expect(page.getByRole('banner')).toContainText('Budi');
 

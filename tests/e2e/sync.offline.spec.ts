@@ -1,4 +1,4 @@
-import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
+import { chromium, expect, FAILED_REQUEST, test, type Browser, type Page } from './support/test';
 import {
   editStoredSession,
   KASIR1,
@@ -19,6 +19,12 @@ import {
   syncStatus,
 } from './support/offline';
 
+// These specs switch the network off and on on purpose. The failed requests and the app's own
+// reports of what it could not reach are expected; uncaught exceptions still fail every test.
+test.beforeEach(({ allowConsoleError }) =>
+  allowConsoleError(FAILED_REQUEST, /Could not|Sync pass|Service worker registration failed|Export of|failed unexpectedly/),
+);
+
 // Offline sales and synchronization (TEST_PLAN G.9 offline cases, G.10, G.11; AC-10, AC-11, AC-12)
 // against the production build with its service worker. Saves real sales; reset the local
 // database afterwards with `npx supabase db reset`.
@@ -29,12 +35,15 @@ const PENDING_BADGE = 'Tersimpan • Menunggu sinkronisasi';
 /** The `next dev` server of the other projects (an origin in the local ALLOWED_ORIGINS). */
 const DEV_SERVER = 'http://localhost:3100';
 
-test('G.10: offline sale survives reload and a browser restart, then syncs once with its sale time', async ({ baseURL }, testInfo) => {
+test('G.10: offline sale survives reload and a browser restart, then syncs once with its sale time', async ({ baseURL, channel, viewport, watchContext, allowConsoleError }, testInfo) => {
+  allowConsoleError(FAILED_REQUEST); // requests that fail on purpose while the device is offline
   const profileDir = testInfo.outputPath('profile');
-  const options = { baseURL, viewport: { width: 360, height: 800 }, serviceWorkers: 'allow' as const };
+  // The same browser (Chromium or the Edge channel) and viewport as the project.
+  const options = { baseURL, channel, viewport: viewport ?? { width: 360, height: 800 }, serviceWorkers: 'allow' as const };
 
   // 1–2. Login while online; the menu is loaded (and saved on the device).
   let context = await chromium.launchPersistentContext(profileDir, options);
+  watchContext(context);
   let page = context.pages()[0] ?? (await context.newPage());
   await startOnline(page, KASIR1.email);
 
@@ -56,6 +65,7 @@ test('G.10: offline sale survives reload and a browser restart, then syncs once 
   // 6–8. Close the browser; reopen the same profile, still offline: the sale is still pending.
   await context.close();
   context = await chromium.launchPersistentContext(profileDir, { ...options, offline: true });
+  watchContext(context);
   page = context.pages()[0] ?? (await context.newPage());
   await page.goto('/riwayat');
   await expect(page.getByRole('banner')).toContainText(KASIR1.name);
@@ -262,7 +272,11 @@ test('G.9 server rejects the session on reconnect → login; the pending sale st
   // The rejection may land before the reload (the online event already tried to sync) or during
   // it; either way the session is gone and the user is on the login page (D5).
   await expect(page).toHaveURL(/\/login(\?alasan=expired)?$/);
-  expect(await outboxEntry(page, id)).toMatchObject({ cashier_id: KASIR1.id, sync_status: 'pending' });
+  // Kept on the device and still to be sent. If the reload cut a pass short the entry can still read
+  // 'syncing' for a moment; the sync picks both states up again (listSyncable), so both are fine.
+  const kept = await outboxEntry(page, id);
+  expect(kept?.cashier_id).toBe(KASIR1.id);
+  expect(['pending', 'syncing']).toContain(kept?.sync_status);
 
   await login(page, KASIR1.email);
   await expect.poll(async () => (await outboxEntry(page, id))?.sync_status, { timeout: 20_000 }).toBe('synced');

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, FAILED_REQUEST, test, type Browser, type Page } from './support/test';
 
 // Requires the local Supabase stack (with the edge runtime), the dev seed, and .env.local
 // (see docs/RUNBOOK.md). Creates a cashier account through the admin-cashier Edge Function and
@@ -49,7 +49,8 @@ async function openActions(page: Page, name: string, action: string) {
   await sheet(page).getByRole('button', { name: action }).click();
 }
 
-test('employee golden flow: create, edit name, reset password, deactivate, reactivate (US-06)', async ({ page, browser }) => {
+test('employee golden flow: create, edit name, reset password, deactivate, reactivate (US-06)', async ({ page, browser, allowConsoleError }) => {
+  allowConsoleError(FAILED_REQUEST, /Could not|failed|refused|Sync pass/i); // the failure this test causes on purpose
   const tag = Date.now().toString(36);
   const name = `Kasir E2E ${tag}`;
   const renamed = `Kasir E2E Baru ${tag}`;

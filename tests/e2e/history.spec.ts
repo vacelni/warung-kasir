@@ -1,4 +1,6 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, FAILED_REQUEST, test, type Locator, type Page } from './support/test';
+import { CREATE_TRANSACTION, injectFault } from './support/faults';
+import { goTo } from './support/offline';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
 // Read-only: it never presses BAYAR and writes nothing to the database, so it runs once per
@@ -40,7 +42,7 @@ async function expectTouchTarget(locator: Locator, minHeight = 48) {
 }
 
 async function openHistory(page: Page) {
-  await page.getByRole('navigation', { name: 'Navigasi utama' }).getByRole('link', { name: 'Riwayat' }).click();
+  await goTo(page, 'Riwayat');
   await expect(page).toHaveURL(/\/riwayat$/);
   await expect(page.getByRole('heading', { name: 'Riwayat', level: 1 })).toBeVisible();
 }
@@ -257,7 +259,10 @@ test('owner: sees every cashier of the store, newest or oldest first, never anot
   await expect(page.getByRole('heading', { name: 'Transaksi tidak ditemukan' })).toBeVisible();
 });
 
-test('this device’s unsynced sales show in history and detail, even when the server cannot be reached', async ({ page }) => {
+test('this device’s unsynced sales show in history and detail, even when the server cannot be reached', async ({ page, allowConsoleError }) => {
+  allowConsoleError(FAILED_REQUEST, /Could not load the transaction|Sync pass/);
+  // The seeded sales must stay on the device: close the one write path so the app cannot send them.
+  await injectFault(page, CREATE_TRANSACTION, 'http500');
   await login(page, CASHIER);
   const now = Date.now();
   const pendingId = 'a1b2c3d4-0000-4000-8000-0000000000a1';

@@ -1,7 +1,13 @@
-import { expect, test, type Page, type Response } from '@playwright/test';
-import { OWNER, productCard, startOnline, supabaseEnv, waitForServiceWorkerControl } from './support/offline';
+import { expect, FAILED_REQUEST, test, type Page, type Response } from './support/test';
+import { KASIR1, login, OWNER, productCard, startOnline, supabaseEnv, waitForServiceWorkerControl } from './support/offline';
 
-// PWA and service worker (PRD §35, TECHNICAL_SPEC C.10) against the production build on :3200.
+// These specs switch the network off and on on purpose. The failed requests and the app's own
+// reports of what it could not reach are expected; uncaught exceptions still fail every test.
+test.beforeEach(({ allowConsoleError }) =>
+  allowConsoleError(FAILED_REQUEST, /Could not|Sync pass|Service worker registration failed|Export of|failed unexpectedly/),
+);
+
+// PWA and service worker (PRD §35, TECHNICAL_SPEC C.10) against the production build on :3000.
 
 /** Every URL in every cache of this origin. */
 function cachedUrls(page: Page) {
@@ -110,7 +116,11 @@ test('Supabase responses are never cached nor served by the service worker', asy
   expect(failed).toBe(true);
 });
 
-test('installable PWA: manifest, icons, service worker (Chrome installability check)', async ({ page, context }) => {
+test('installable PWA: manifest, icons, service worker (Chrome installability check)', async ({ page, context, channel }) => {
+  test.skip(
+    channel === 'msedge',
+    "Playwright's Edge contexts are ephemeral, so Edge reports 'in-incognito'; the install check runs on Chromium.",
+  );
   await page.goto('/login');
   await waitForServiceWorkerControl(page);
 
@@ -125,4 +135,22 @@ test('installable PWA: manifest, icons, service worker (Chrome installability ch
   for (const icon of manifest.icons as Array<{ src: string }>) {
     expect((await page.request.get(icon.src)).ok()).toBe(true);
   }
+});
+
+test('a service worker that cannot be registered does not break the app', async ({ page, allowConsoleError }) => {
+  // The app reports the failure once and goes on working online (features/offline/ServiceWorkerRegistration.tsx).
+  allowConsoleError(/Service worker registration failed/);
+  await page.addInitScript(() => {
+    navigator.serviceWorker.register = () => Promise.reject(new DOMException('Blocked by policy.', 'SecurityError'));
+  });
+  const reported = page.waitForEvent('console', (message) => /Service worker registration failed/.test(message.text()));
+
+  await login(page, KASIR1.email);
+  await reported;
+  await expect(productCard(page, 'Nasi Goreng')).toBeVisible();
+  expect(await page.evaluate(() => navigator.serviceWorker.controller)).toBeNull();
+
+  // Navigation and ordering work without a worker.
+  await productCard(page, 'Es Teh').click();
+  await expect(page.getByRole('link', { name: 'LIHAT PESANAN' })).toBeVisible();
 });

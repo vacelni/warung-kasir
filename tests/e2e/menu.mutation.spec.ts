@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, FAILED_REQUEST, test, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
 // Seed store A: categories Makanan, Minuman, Snack; Nasi Goreng 15.000 (active), Nasi Rames 13.000 (inactive).
@@ -22,7 +22,8 @@ const row = (page: Page, name: string) => page.getByRole('main').getByRole('list
 const sheet = (page: Page) => page.getByRole('dialog');
 
 test.describe('owner management flow', () => {
-  test('categories and products: create, edit, deactivate, reactivate, protected delete — persisted', async ({ page }) => {
+  test('categories and products: create, edit, deactivate, reactivate, protected delete — persisted', async ({ page, allowConsoleError }) => {
+  allowConsoleError(FAILED_REQUEST, /Could not|failed|refused|Sync pass/i); // the failure this test causes on purpose
     const tag = Date.now().toString(36);
     const category = `E2E ${tag}`;
     const renamed = `E2E Baru ${tag}`;

@@ -23,3 +23,14 @@ describe('assertPublishableKey (SECURITY E.7)', () => {
     expect(() => assertPublishableKey(legacyKey('service_role'))).toThrow(/service_role/);
   });
 });
+
+describe('assertPublishableKey with keys it cannot inspect', () => {
+  it('lets a dotted key that is not a JWT through (nothing to inspect)', () => {
+    expect(() => assertPublishableKey('not.a.jwt-at-all')).not.toThrow();
+  });
+
+  it('lets a JWT without a role claim through', () => {
+    const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+    expect(() => assertPublishableKey(`${encode({ alg: 'HS256' })}.${encode({ iss: 'supabase-demo' })}.sig`)).not.toThrow();
+  });
+});

@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Request } from '@playwright/test';
+import { expect, FAILED_REQUEST, test, type Page, type Request } from './support/test';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
 // Saves real sales for kasir1.a, so it runs in the serial "mutations" project after every
@@ -166,7 +166,8 @@ test('golden path: pay with a double tap, one sale saved and synced, Transaksi B
   expect(rpcRequests).toHaveLength(1);
 });
 
-test('lost response: the server saved the sale, the retry sends the same UUID and gets exists (G.11)', async ({ page }) => {
+test('lost response: the server saved the sale, the retry sends the same UUID and gets exists (G.11)', async ({ page, allowConsoleError }) => {
+  allowConsoleError(FAILED_REQUEST, /Could not|failed|refused|Sync pass/i); // the failure this test causes on purpose
   await login(page, CASHIER);
   await openPayment(page, ['Es Jeruk']);
 

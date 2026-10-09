@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/test';
 
 test('root sends a visitor without a session to login', async ({ page }) => {
   await page.goto('/');

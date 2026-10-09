@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { expect, test, type Download, type Page } from '@playwright/test';
+import { expect, test, type Download, type Page } from './support/test';
 
 // Requires the local Supabase stack (with the edge runtime), the dev seed, and .env.local
 // (see docs/RUNBOOK.md). Read-only: it lists, opens sheets without saving, and downloads CSVs.

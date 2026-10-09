@@ -3,7 +3,8 @@
  * E2E specs test the real build, service worker included (never `next dev`):
  *  - clean URLs: /kasir → kasir.html, / → index.html, no redirect;
  *  - response headers from out/_headers (public/_headers), "/*" splats and exact paths;
- *  - 404.html with status 404 for anything else.
+ *  - 404.html with status 404 for anything else;
+ *  - Next's segment-prefetch files on a Windows-built out/ (see windowsSegmentFile).
  *
  * Usage: node tests/e2e/support/static-server.mts <port>
  */
@@ -13,7 +14,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..', '..', '..', 'out');
-const port = Number(process.argv[2] ?? 3200);
+const port = Number(process.argv[2] ?? 3000);
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -58,13 +59,31 @@ async function isFile(file: string): Promise<boolean> {
   }
 }
 
+/**
+ * Next's client router prefetches "/kasir/__next.!KGFwcCk.kasir.__PAGE__.txt" (segments joined by
+ * dots). `next build` writes that file under exactly this name on Linux (Cloudflare's build), but
+ * on Windows Next 16.4 joins the segments of `path.relative()` (backslashes) and writes
+ * "/kasir/__next.!KGFwcCk/kasir/__PAGE__.txt" instead. This maps the requested name to the nested
+ * file, so a Windows-built out/ behaves in the tests as the Linux-built one does in production
+ * (no 404 for every prefetch). Does nothing when the dotted file exists.
+ */
+function windowsSegmentFile(pathname: string): string | null {
+  const match = /^(.*\/)__next\.([^./]+)\.(.+)\.txt$/.exec(pathname);
+  if (!match) return null;
+  const [, directory, first, rest] = match;
+  return `${directory}__next.${first}/${rest!.split('.').join('/')}.txt`;
+}
+
 /** The file Cloudflare would serve for this path, or null. */
 async function resolveFile(pathname: string): Promise<string | null> {
   const decoded = decodeURIComponent(pathname);
-  const candidate = path.normalize(path.join(root, decoded));
-  if (!candidate.startsWith(root)) return null;
-  for (const file of [candidate, `${candidate}.html`, path.join(candidate, 'index.html')]) {
-    if (await isFile(file)) return file;
+  const alternatives = [decoded, windowsSegmentFile(decoded)].filter((name): name is string => name !== null);
+  for (const name of alternatives) {
+    const candidate = path.normalize(path.join(root, name));
+    if (!candidate.startsWith(root)) return null;
+    for (const file of [candidate, `${candidate}.html`, path.join(candidate, 'index.html')]) {
+      if (await isFile(file)) return file;
+    }
   }
   return null;
 }

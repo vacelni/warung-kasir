@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
 // Seed store A: categories Makanan, Minuman, Snack; Nasi Goreng 15.000 (active), Nasi Rames 13.000 (inactive).

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, FAILED_REQUEST, test, type Page } from './support/test';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
 // Saves real sales for kasir1.a, so it runs in the serial "mutations" project after every
@@ -24,8 +24,12 @@ const card = (page: Page, name: string) => page.getByRole('main').getByRole('but
 const historyCard = (page: Page, code: string) => page.getByRole('main').getByRole('link', { name: new RegExp(code) });
 const rowValue = (page: Page, label: string) =>
   page.getByRole('main').getByText(label, { exact: true }).locator('xpath=following-sibling::dd');
+// The bottom bar on a phone, the sidebar on a desktop: whichever the viewport shows.
 const nav = (page: Page, name: string) =>
-  page.getByRole('navigation', { name: 'Navigasi utama' }).getByRole('link', { name });
+  page
+    .getByRole('navigation', { name: 'Navigasi utama' })
+    .or(page.getByRole('navigation', { name: 'Navigasi samping' }))
+    .getByRole('link', { name, exact: true });
 
 async function openPayment(page: Page, products: string[]) {
   for (const name of products) await card(page, name).click();
@@ -135,7 +139,9 @@ test('golden path (G.15): pay, then find the sale in Riwayat, open it, and check
 
 test('a sale the server has not received shows as pending at once, then becomes one synced card (no duplicate)', async ({
   page,
+  allowConsoleError,
 }) => {
+  allowConsoleError(FAILED_REQUEST, /Could not|failed|refused|Sync pass/i); // the failure this test causes on purpose
   await login(page, CASHIER);
 
   // First sale: the server never answers (the response is lost), so it stays on the device.

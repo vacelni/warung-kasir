@@ -34,6 +34,27 @@ describe('getDb schema upgrade', () => {
   });
 });
 
+describe('getDb connection handling', () => {
+  it('lets another tab upgrade the schema: this connection closes and a failed reopen is not cached', async () => {
+    const db = await getDb();
+    // A newer app version in another tab asks for version 3; the old connection must step aside.
+    const newer = await openDB('warung-kasir', 3, { upgrade() {} });
+
+    await expect(db.get('outbox', 'any')).rejects.toThrow();
+    newer.close();
+
+    // This (old) code asks for version 2, which the database has moved past: the open fails...
+    await expect(getDb()).rejects.toThrow();
+    // ...and the failure is not remembered, so each call tries again instead of returning one stale rejection.
+    await expect(getDb()).rejects.toThrow();
+  });
+
+  it('closeDb with no open connection does nothing', async () => {
+    await closeDb();
+    await expect(closeDb()).resolves.toBeUndefined();
+  });
+});
+
 describe('isQuotaError', () => {
   it('recognizes the browser’s "storage full" errors', () => {
     expect(isQuotaError(new DOMException('full', 'QuotaExceededError'))).toBe(true);

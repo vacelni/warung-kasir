@@ -1,6 +1,7 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './support/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { goTo } from './support/offline';
 
 // Requires the local Supabase stack with the dev seed and .env.local (see docs/RUNBOOK.md).
 // Read-only: it only reads reports, so it runs once per viewport. The numbers come from the
@@ -42,7 +43,7 @@ async function expectTouchTarget(locator: Locator, minHeight = 48) {
 }
 
 async function openLaporan(page: Page) {
-  await page.getByRole('navigation', { name: 'Navigasi utama' }).getByRole('link', { name: 'Laporan' }).click();
+  await goTo(page, 'Laporan');
   await expect(page).toHaveURL(/\/laporan$/);
   await expect(page.getByRole('heading', { name: 'Laporan', level: 1 })).toBeVisible();
 }
@@ -82,10 +83,15 @@ test('owner dashboard: four metrics, chart, best sellers and the filter show the
   const boxes = await Promise.all(
     ['Omzet', 'Transaksi', 'Item Terjual', 'Rata-rata Transaksi'].map((name) => metric(page, name).boundingBox()),
   );
-  expect(boxes[0]!.y).toBe(boxes[1]!.y); // row 1: Omzet | Transaksi
-  expect(boxes[2]!.y).toBe(boxes[3]!.y); // row 2: Item Terjual | Rata-rata
-  expect(boxes[2]!.y).toBeGreaterThan(boxes[0]!.y);
-  expect(boxes[0]!.x).toBe(boxes[2]!.x);
+  if ((page.viewportSize()?.width ?? 0) < 768) {
+    expect(boxes[0]!.y).toBe(boxes[1]!.y); // row 1: Omzet | Transaksi
+    expect(boxes[2]!.y).toBe(boxes[3]!.y); // row 2: Item Terjual | Rata-rata
+    expect(boxes[2]!.y).toBeGreaterThan(boxes[0]!.y);
+    expect(boxes[0]!.x).toBe(boxes[2]!.x);
+  } else {
+    // From the tablet width up the four metrics sit in one row (md:grid-cols-4).
+    expect(new Set(boxes.map((box) => box!.y)).size).toBe(1);
+  }
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
   for (const name of ['Hari Ini', '7 Hari', '30 Hari', 'Custom']) {
     await expectTouchTarget(main(page).getByRole('button', { name, exact: true }));

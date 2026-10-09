@@ -33,6 +33,7 @@ export const AUTH_MESSAGES = {
   invalidCredentials: 'Email atau password salah.',
   inactive: 'Akun tidak aktif atau belum terdaftar. Hubungi Owner.',
   offline: 'Koneksi internet diperlukan untuk masuk.',
+  serverError: 'Server sedang bermasalah. Coba lagi sebentar lagi.',
   rateLimited: 'Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.',
   profileUnavailable: 'Gagal memuat data akun. Periksa koneksi lalu coba lagi.',
   sessionExpired: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
@@ -51,7 +52,12 @@ export function toActiveProfile(row: ProfileRow | null): Profile | null {
 
 /** User-facing message for a failed signInWithPassword call (PRD §38, UI_SPEC A.8). */
 export function loginErrorMessage(error: unknown): string {
-  if (isAuthRetryableFetchError(error)) return AUTH_MESSAGES.offline;
+  if (isAuthRetryableFetchError(error)) {
+    // auth-js gives status 0 when no answer came back at all (offline, DNS, timeout) and the HTTP
+    // status when the server answered with a failure (5xx). A server failure is not proof that the
+    // connection is down, so it must not tell the user to look for internet.
+    return error.status >= 500 ? AUTH_MESSAGES.serverError : AUTH_MESSAGES.offline;
+  }
   if (isAuthApiError(error)) {
     switch (error.code) {
       case 'invalid_credentials':

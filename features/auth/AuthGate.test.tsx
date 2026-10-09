@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '@/components/layout/AppShell';
 import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
@@ -61,6 +61,19 @@ function renderApp() {
       </AuthGate>
     </AuthProvider>,
   );
+}
+
+/**
+ * The browser's `online` event. `findByText` can return as soon as the DOM changed, before React
+ * has run the effects of that render, and the provider only listens for `online` from such an
+ * effect. An event fired in that gap is lost (it failed about 1 run in 15 under load, whatever the
+ * timeout). Flushing effects first makes the listener exist when the event arrives.
+ */
+async function networkReturns() {
+  await act(async () => {});
+  await act(async () => {
+    window.dispatchEvent(new Event('online'));
+  });
 }
 
 beforeEach(async () => {
@@ -141,7 +154,7 @@ describe('AuthGate (AC-13)', () => {
     await screen.findByText('Konten privat');
 
     sessionIs({ status: 'signedOut', reason: 'expired' });
-    window.dispatchEvent(new Event('online'));
+    await networkReturns();
 
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/login?alasan=expired'));
     expect(mocks.loadSession).toHaveBeenCalledTimes(2);
@@ -153,7 +166,7 @@ describe('AuthGate (AC-13)', () => {
     await screen.findByText('Konten privat');
 
     sessionIs({ status: 'signedIn', profile: { ...cashier, name: 'Andi P.' } });
-    window.dispatchEvent(new Event('online'));
+    await networkReturns();
 
     expect(await within(screen.getByRole('banner')).findByText('Andi P.')).toBeTruthy();
     expect(mocks.replace).not.toHaveBeenCalled();
@@ -165,7 +178,7 @@ describe('AuthGate (AC-13)', () => {
     await screen.findByText('Konten privat');
 
     sessionIs({ status: 'unreachable' });
-    window.dispatchEvent(new Event('online'));
+    await networkReturns();
 
     await waitFor(() => expect(mocks.loadSession).toHaveBeenCalledTimes(2));
     expect(screen.getByText('Konten privat')).toBeTruthy();
@@ -177,7 +190,7 @@ describe('AuthGate (AC-13)', () => {
     renderApp();
     await screen.findByText('Konten privat');
 
-    window.dispatchEvent(new Event('online'));
+    await networkReturns();
 
     expect(mocks.loadSession).toHaveBeenCalledOnce();
   });
