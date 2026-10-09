@@ -235,9 +235,9 @@ project is configured by hand:
 
 - Sign-ups: **off**. Anonymous sign-ins: **off**. Email provider: **on** (it is the login method).
 - Secure password change: **on** (SEC-04). Secure email change / double confirm: **on**.
-- **Require current password when changing password: on** (SEC-04 final review). Use the dashboard
-  toggle if the project shows one (its location was not confirmed before deployment); otherwise the
-  Management API auth-config field `security_update_password_require_current_password: true`
+- **Require current password when changing password: on** (SEC-04 final review). The dashboard
+  shows this toggle (confirmed on the production project, 2026-10-09); the equivalent Management API
+  auth-config field is `security_update_password_require_current_password: true`
   *(approval)*. Confirm with a read-only read of the auth config. The local stack cannot enable it
   (Supabase CLI 2.120.0 has no config key), so this is the one Auth setting that differs from local.
 - Minimum password length: **8**. Rate limits: defaults (never the local test value 300).
