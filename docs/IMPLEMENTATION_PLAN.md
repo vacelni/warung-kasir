@@ -155,6 +155,7 @@
 
 - **Objective:** verify SECURITY E.1–E.13 and the RLS matrix; Supabase Security and Performance Advisors; secret scan of history; `npm audit`; CSP/headers; service worker cache scope; sign-up disabled.
 - **Output:** PASS / FAIL / WARNING report; all FAIL items fixed before Phase 13.
+- **Status (2026-10-09):** audit done (read-only); remediation is "Phase 12R", tracked in `docs/engineering/` (`ROADMAP.md`, `SECURITY_TRACKER.md`, `PHASE_LOG.md`).
 
 ### Phase 13 — Production Deployment
 

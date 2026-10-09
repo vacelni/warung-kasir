@@ -36,6 +36,8 @@ Always follow these documents:
 
 Phase order, phase gates, and the decision log are in `docs/IMPLEMENTATION_PLAN.md` (read it when starting or reviewing a phase).
 
+Execution state (current phase, open items, logs, security tracker) is in `docs/engineering/STATE.md`; read it first when resuming work. It tracks progress only and never overrides the specifications.
+
 If implementation conflicts with documentation, identify the conflict before proceeding.
 
 Do not silently invent a third behavior.
