@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(67);
+select plan(75);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures: store A (owner + cashier) and store B (owner).
@@ -401,6 +401,62 @@ select has_index('public', 'categories', 'categories_store_id_name_key', array['
   'categories(store_id) is served by the unique (store_id, name) index');
 select has_index('public', 'profiles', 'profiles_store_id_role_idx', array['store_id', 'role'],
   'index profiles(store_id, role)');
+
+-- SEC-08: function and sequence privileges --------------------------------
+
+select is(
+  (select count(*)::int from pg_proc p
+   where p.pronamespace = 'public'::regnamespace and has_function_privilege('anon', p.oid, 'execute')),
+  0,
+  'anon can execute no function in public'
+);
+
+select is(
+  (select array_agg(p.proname::text order by p.proname) from pg_proc p
+   where p.pronamespace = 'public'::regnamespace and has_function_privilege('authenticated', p.oid, 'execute')),
+  array['create_transaction', 'sales_series', 'sales_summary', 'top_products'],
+  'authenticated can execute only the allow-listed functions in public'
+);
+
+select is(
+  (select count(*)::int from pg_proc p
+   where p.pronamespace = 'private'::regnamespace and has_function_privilege('anon', p.oid, 'execute')),
+  0,
+  'anon can execute no function in private'
+);
+
+-- A function and a sequence created now, as a future migration would, get no client privileges.
+create function public.sec08_probe() returns int language sql as 'select 1';
+create sequence public.sec08_probe_seq;
+
+select ok(
+  not has_function_privilege('anon', 'public.sec08_probe()', 'execute')
+  and not has_function_privilege('authenticated', 'public.sec08_probe()', 'execute'),
+  'a new function in public is not executable by anon or authenticated (nor through PUBLIC)'
+);
+
+select ok(
+  not has_sequence_privilege('anon', 'public.sec08_probe_seq', 'usage, select, update')
+  and not has_sequence_privilege('authenticated', 'public.sec08_probe_seq', 'usage, select, update'),
+  'a new sequence in public is not usable by anon or authenticated'
+);
+
+select ok(
+  has_function_privilege('service_role', 'public.sec08_probe()', 'execute'),
+  'service_role keeps its default privileges (server-side only)'
+);
+
+-- SEC-07: name length constraints (the backstop behind create_transaction and the forms).
+select is(
+  (select pg_get_constraintdef(c.oid) from pg_constraint c where c.conname = 'products_name_length'),
+  'CHECK ((char_length(name) <= 120))',
+  'products.name is at most 120 characters'
+);
+select is(
+  (select pg_get_constraintdef(c.oid) from pg_constraint c where c.conname = 'transaction_items_product_name_length'),
+  'CHECK ((char_length(product_name) <= 120))',
+  'transaction_items.product_name is at most 120 characters'
+);
 
 select * from finish();
 rollback;

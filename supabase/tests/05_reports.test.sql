@@ -18,6 +18,9 @@ select plan(46);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
+-- Helpers are called as anon/authenticated. Since SEC-08 new functions get no EXECUTE by
+-- default (not even through PUBLIC), so grant the helpers of this schema explicitly.
+alter default privileges in schema tests grant execute on functions to anon, authenticated;
 
 create function tests.act_as(user_id uuid)
 returns void

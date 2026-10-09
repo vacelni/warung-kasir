@@ -6,13 +6,16 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(73);
+select plan(77);
 
 -- ---------------------------------------------------------------------------
 -- Helpers (rolled back with the test transaction)
 -- ---------------------------------------------------------------------------
 create schema tests;
 grant usage on schema tests to anon, authenticated;
+-- Helpers are called as anon/authenticated. Since SEC-08 new functions get no EXECUTE by
+-- default (not even through PUBLIC), so grant the helpers of this schema explicitly.
+alter default privileges in schema tests grant execute on functions to anon, authenticated;
 
 create function tests.act_as(user_id uuid)
 returns void
@@ -596,6 +599,40 @@ select throws_ok(
 select throws_ok(
   $$ delete from public.transaction_items where transaction_id = 'e1000000-0000-4000-9000-000000000001' $$,
   '42501', null, 'the owner cannot delete transaction items'
+);
+reset role;
+
+-- ===========================================================================
+-- SEC-07: payload limits (at most 200 items; product_name at most 120 characters)
+-- ===========================================================================
+select tests.act_as('a2000000-0000-4000-9000-000000000001');
+select is(
+  tests.sell('e1000000-0000-4000-9000-000000000701',
+    (select jsonb_agg(tests.item('d0000000-0000-4000-9000-00000000000a', 15000, 1, 15000)) from generate_series(1, 200)),
+    3000000, 3000000, 0),
+  'created',
+  '200 items in one sale are accepted'
+);
+select throws_ok(
+  $$ select tests.sell('e1000000-0000-4000-9000-000000000702',
+       (select jsonb_agg(tests.item('d0000000-0000-4000-9000-00000000000a', 15000, 1, 15000)) from generate_series(1, 201)),
+       3015000, 3015000, 0) $$,
+  'WK001', 'create_transaction: at most 200 items per sale',
+  '201 items are rejected with WK001'
+);
+select is(
+  tests.sell('e1000000-0000-4000-9000-000000000703',
+    jsonb_build_array(tests.item('d0000000-0000-4000-9000-00000000000a', 15000, 1, 15000, repeat('N', 120))),
+    15000, 15000, 0),
+  'created',
+  'a product_name of 120 characters is accepted'
+);
+select throws_ok(
+  $$ select tests.sell('e1000000-0000-4000-9000-000000000704',
+       jsonb_build_array(tests.item('d0000000-0000-4000-9000-00000000000a', 15000, 1, 15000, repeat('N', 121))),
+       15000, 15000, 0) $$,
+  'WK001', 'create_transaction: product_name is longer than 120 characters',
+  'a product_name of 121 characters is rejected with WK001'
 );
 reset role;
 

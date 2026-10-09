@@ -71,6 +71,7 @@ updated_at timestamptz
 Constraint:
 
 price > 0
+char_length(name) <= 120   (SEC-07)
 
 category_id harus merujuk kategori dari store yang sama (ditegakkan oleh RLS WITH CHECK pada insert/update).
 
@@ -130,6 +131,7 @@ quantity > 0
 unit_price > 0
 subtotal > 0
 subtotal::bigint = unit_price::bigint * quantity
+char_length(product_name) <= 120   (SEC-07)
 
 Product name dan unit price adalah snapshot pada saat penjualan.
 
@@ -174,7 +176,8 @@ caller = auth.uid(); profil harus ada dan is_active = true;
 store_id dan cashier_id diambil dari profil caller, tidak pernah dari payload;
 jika id sudah ada dengan store_id dan cashier_id yang sama dengan caller → kembalikan 'exists' tanpa perubahan apa pun;
 jika id sudah ada milik cashier atau store lain → tolak (kode validasi, mis. WK001) tanpa perubahan apa pun, agar transaksi orang lain tidak pernah dilaporkan sebagai tersinkron di perangkat caller;
-items tidak boleh kosong;
+items tidak boleh kosong dan paling banyak 200 item per transaksi (SEC-07);
+product_name wajib diisi dan paling banyak 120 karakter (SEC-07);
 setiap product_id harus milik store caller (produk aktif maupun tidak aktif diterima);
 quantity ≥ 1, unit_price ≥ 1, subtotal = unit_price × quantity;
 total = SUM(subtotal), paid_amount >= total, change_amount = paid_amount - total;
@@ -184,7 +187,7 @@ perhitungan dilakukan dalam bigint; nilai yang melebihi batas integer PostgreSQL
 
 unit_price TIDAK dibandingkan dengan harga produk saat ini. Penjualan offline yang sah dapat menggunakan harga cache. Ini adalah accepted risk (SECURITY E.12).
 
-Penulisan menggunakan INSERT … ON CONFLICT (id) DO NOTHING; jika konflik terjadi karena race, kembalikan 'exists'.
+Penulisan menggunakan INSERT … ON CONFLICT (id) DO NOTHING; jika konflik terjadi karena race, baris yang sudah di-commit dibaca ulang: kembalikan 'exists' hanya jika store_id dan cashier_id-nya sama dengan caller, selain itu tolak dengan WK001 seperti pengecekan awal (SEC-05). Diuji dengan dua sesi database yang benar-benar bersamaan (tests/functions/create-transaction-race.test.ts).
 
 Penolakan validasi menggunakan kode error yang dapat dibedakan sehingga client dapat menandai transaksi sebagai failed (permanen) dan bukan pending (sementara).
 
@@ -204,6 +207,7 @@ anon: tidak ada akses ke tabel bisnis;
 transactions, transaction_items: REVOKE INSERT, UPDATE, DELETE dari anon dan authenticated (penulisan hanya via create_transaction);
 products: tidak ada DELETE untuk client;
 profiles: client hanya UPDATE (name);
-helper function RLS berada di schema private yang tidak diekspos API, EXECUTE dicabut dari public/anon.
+helper function RLS berada di schema private yang tidak diekspos API, EXECUTE dicabut dari public/anon;
+default privileges (SEC-08): function dan sequence baru yang dibuat migration (role postgres) tidak mendapat hak apa pun untuk PUBLIC, anon, atau authenticated; setiap function yang boleh dipanggil client harus di-GRANT secara eksplisit. Daftar yang diizinkan untuk authenticated di schema public: create_transaction, sales_summary, sales_series, top_products (diuji pgTAP).
 
 Kebijakan RLS per tabel: SECURITY E.5.
