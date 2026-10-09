@@ -414,3 +414,22 @@ E2E: `history.spec.ts` receipt (`360x800`, `static`) 2 passed; `sync.offline.spe
 
 **Phase 13-prep verdict: COMPLETE.** Phase 14 preparation (DoD matrix, device checklist, owner
 briefing items) is in `LAUNCH_READINESS.md` and RUNBOOK §7.7.
+
+## Release-candidate gate on `7051314` (2026-10-09) — INCOMPLETE
+
+| Command | Result |
+|---|---|
+| lint, typecheck | pass |
+| `npm run test` | 942 passed |
+| `npm run test:db` | 365 passed |
+| `npm run test:functions` | 21 passed |
+| `npm run build` | pass |
+| `npm audit --omit=dev` | 0 |
+| `supabase db advisors --local` | No issues found |
+| full Playwright matrix (726 tests) | **interrupted** at test 656/726 (in `mutations-edge`) with 0 failures so far: Claude Code stopped the background run because the machine was critically low on memory. `static-mutations`, `offline`, `offline-edge` did not run in this pass. |
+
+Last complete evidence for those projects: `offline`/`offline-edge` and the three mutation projects
+passed after INFO-3 (33 passed / 1 skipped, 57 passed); later changes were covered by targeted runs
+(`sync.offline.spec.ts` 12 passed after the review fixes; receipt offline 2 passed; history
+mutation 6 passed). **Action:** re-run RUNBOOK §6 in full on the release commit when memory allows,
+then `npx supabase db reset` (the interrupted run may have left test data in the local database).

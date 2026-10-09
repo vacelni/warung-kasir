@@ -12,7 +12,7 @@ These engineering records track execution only and never override the specs.
 | Branch | `feature/warungkasir-launch-readiness` (from `a0ddd47`, Phase 11 checkpoint) |
 | Commit policy | One local commit per verified sub-step. **No push.** No hosted Supabase/Cloudflare action without explicit approval |
 | Current phase | 13-prep complete → waiting for approval of Phase 13 (production deployment) |
-| Current sub-step | none in progress; next: user decisions in `LAUNCH_READINESS.md`, then RUNBOOK §7 step by step with approval |
+| Current sub-step | Release-candidate full Playwright matrix interrupted (low memory) at 656/726, 0 failures: re-run RUNBOOK §6, then `npx supabase db reset`; then user decisions in `LAUNCH_READINESS.md` and RUNBOOK §7 with approval |
 | Local stack | Docker + local Supabase (`supabase/.temp` has no `project-ref`: not linked to any hosted project) |
 
 ## Records

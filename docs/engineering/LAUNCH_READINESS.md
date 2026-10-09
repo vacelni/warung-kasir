@@ -8,7 +8,7 @@ Status: ✅ met · ❌ not met · ⬜ not yet checked (external/manual).
 
 | State | Status |
 |---|---|
-| Ready for deployment — local evidence | **READY** (release candidate on `feature/warungkasir-launch-readiness`; re-run RUNBOOK §6 on the exact commit before deploying) |
+| Ready for deployment — local evidence | **READY, pending one full re-run**: every gate passed on `7051314` except the full Playwright matrix, which was interrupted (low memory) at 656/726 with 0 failures; re-run RUNBOOK §6 before deploying |
 | Deployed | **NO** — no hosted Supabase project, no Cloudflare project, no git remote |
 | Verified in production | **NO** — RUNBOOK §7.6–7.7 after an approved deployment |
 
