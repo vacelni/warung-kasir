@@ -351,3 +351,20 @@ pass, lint/typecheck pass, `sync.offline.spec.ts` (`offline`) 12 passed, `auth.s
 
 **Phase 12R verdict: COMPLETE.** All P0/P1 findings fixed with tests; P2 items implemented as
 decided or documented; no open Critical/High finding.
+
+---
+
+## 13P.1 — History custom date range (PRD §44, 2026-10-09)
+
+Prompt: `prompts/phase-13-release-prep.md`. Spec first: UI_SPEC A.15 "Filter tanggal".
+Changes: day-range helpers moved from `features/reports/range.ts` to `lib/time.ts`
+(`validateDayRange`, `dayRangeInstants`, `countJakartaDays`, `jakartaDayInput`; reports keep their
+exported names as thin wrappers); history `DATE_PRESETS` + `custom` ("Rentang Tanggal"),
+`DateSelection`, `validateHistoryRange` (366 days, like Laporan); `useTransactions` takes
+`preset/fromDay/toDay`; `HistoryList` shows the fields, explains an unusable range, hides the list
+and loads nothing for it (the query keeps the last valid range); shared
+`components/ui/DateRangeFields` (second use) now also used by `PeriodFilter`.
+Tests: `filters.test.ts` +3 (inclusive WIB days, boundaries, messages; dateRangeFor calls migrated
+to the selection object; `'custom'` is now a known preset), `HistoryList.test.tsx` +2 (+1
+expectation: option list), E2E `history.spec.ts` +1. Results: related unit 409 passed; E2E on
+`360x800`, `static`, `chromium` 3 passed; lint, typecheck pass.

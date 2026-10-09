@@ -361,6 +361,7 @@ describe('HistoryList — date filter and order', () => {
       '7 Hari Terakhir',
       '30 Hari Terakhir',
       'Semua Tanggal',
+      'Rentang Tanggal',
     ]);
 
     fireEvent.change(select, { target: { value: 'yesterday' } });
@@ -370,6 +371,40 @@ describe('HistoryList — date filter and order', () => {
 
     fireEvent.change(select, { target: { value: 'all' } });
     await waitFor(() => expect(lastQuery().range).toEqual({ from: null, to: null }));
+  });
+
+  it('a custom range shows two date fields and queries those whole WIB days (UI_SPEC A.15)', async () => {
+    render(<HistoryList />);
+    await waitFor(() => expect(mocks.listTransactions).toHaveBeenCalled());
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter tanggal' }), { target: { value: 'custom' } });
+
+    // Starts as the last 7 days, today included.
+    expect((screen.getByLabelText('Dari tanggal') as HTMLInputElement).value).toBe('2026-10-01');
+    expect((screen.getByLabelText('Sampai tanggal') as HTMLInputElement).value).toBe('2026-10-07');
+    await waitFor(() =>
+      expect(lastQuery().range).toEqual({ from: '2026-09-30T17:00:00.000Z', to: '2026-10-07T17:00:00.000Z' }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Dari tanggal'), { target: { value: '2026-10-03' } });
+    fireEvent.change(screen.getByLabelText('Sampai tanggal'), { target: { value: '2026-10-04' } });
+    await waitFor(() =>
+      expect(lastQuery().range).toEqual({ from: '2026-10-02T17:00:00.000Z', to: '2026-10-04T17:00:00.000Z' }),
+    );
+  });
+
+  it('an unusable custom range is explained, hides the list, and loads nothing', async () => {
+    mocks.listTransactions.mockResolvedValue(page([serverEntry(A, '2026-10-07T03:32:00.000Z')]));
+    render(<HistoryList />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter tanggal' }), { target: { value: 'custom' } });
+    await waitFor(() => expect(cards()).toHaveLength(1));
+    const calls = mocks.listTransactions.mock.calls.length;
+
+    fireEvent.change(screen.getByLabelText('Dari tanggal'), { target: { value: '2026-10-09' } });
+
+    expect(screen.getByRole('alert').textContent).toBe('Tanggal awal tidak boleh setelah tanggal akhir.');
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(mocks.listTransactions).toHaveBeenCalledTimes(calls);
   });
 
   it('hides this device’s sales outside the chosen day', async () => {

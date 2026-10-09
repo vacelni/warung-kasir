@@ -319,3 +319,26 @@ test('this device’s unsynced sales show in history and detail, even when the s
   await expect(main.getByText(/Server menolak transaksi ini/)).toBeVisible();
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
+
+test('custom date range: whole WIB days of the seed, an unusable range is explained (UI_SPEC A.15)', async ({ page }) => {
+  await login(page, OWNER);
+  await openHistory(page);
+  await page.getByRole('combobox', { name: 'Filter tanggal' }).selectOption('custom');
+
+  // 7 Oct 2026 (WIB), the day of the seed's store A sales.
+  await page.getByLabel('Dari tanggal').fill('2026-10-07');
+  await page.getByLabel('Sampai tanggal').fill('2026-10-07');
+  await expect(card(page, '3F9A2C')).toBeVisible();
+  await expect(card(page, '8C41E0')).toBeVisible();
+
+  // The day before holds none of them.
+  await page.getByLabel('Dari tanggal').fill('2026-10-06');
+  await page.getByLabel('Sampai tanggal').fill('2026-10-06');
+  await expect(card(page, '3F9A2C')).toHaveCount(0);
+
+  // From after to: a message, no list.
+  await page.getByLabel('Dari tanggal').fill('2026-10-08');
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Tanggal awal tidak boleh setelah tanggal akhir.');
+  await expect(page.getByRole('main').getByRole('link', { name: /TRX-/ })).toHaveCount(0);
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+});

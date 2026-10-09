@@ -11,12 +11,16 @@ import {
   matchesCode,
   type DatePreset,
   type DateRange,
+  type DateSelection,
   type HistoryOrder,
 } from './filters';
 import { fromOutbox, mergeHistory, type HistoryEntry } from './model';
 
 export type HistoryFilters = {
   preset: DatePreset;
+  /** The custom range ("YYYY-MM-DD", inclusive), used when `preset` is 'custom'; HistoryList validates it first. */
+  fromDay: string;
+  toDay: string;
   order: HistoryOrder;
   /** Already normalized (see `normalizeSearch`). */
   search: string;
@@ -52,14 +56,19 @@ async function readLocal(cashierId: string, storeId: string, cashierName: string
  * History data for the list screen: the server's pages merged with this device's own sales
  * (pending, failed, and the local copy of synced ones), filtered and sorted the same way.
  */
-export function useTransactions({ preset, order, search }: HistoryFilters) {
+function selectionOf(preset: DatePreset, fromDay: string, toDay: string): DateSelection {
+  return preset === 'custom' ? { preset, fromDay, toDay } : { preset };
+}
+
+export function useTransactions({ preset, fromDay, toDay, order, search }: HistoryFilters) {
   const { id: userId, storeId, name: userName, role } = useProfile();
   // Cashiers also ask the server for their own sales only; RLS enforces it either way (D1).
   const cashierId = role === 'cashier' ? userId : null;
 
   const [reloadCount, setReloadCount] = useState(0);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const key = [preset, order, search, userId, reloadCount].join('|');
+  const dateKey = preset === 'custom' ? `custom:${fromDay}:${toDay}` : preset;
+  const key = [dateKey, order, search, userId, reloadCount].join('|');
   const keyRef = useRef(key);
 
   // Anything loaded for another query counts as "still loading": derived, so a filter change
@@ -69,7 +78,7 @@ export function useTransactions({ preset, order, search }: HistoryFilters) {
   useEffect(() => {
     keyRef.current = key;
     let active = true;
-    const range = dateRangeFor(preset, new Date());
+    const range = dateRangeFor(selectionOf(preset, fromDay, toDay), new Date());
 
     void Promise.all([
       readLocal(userId, storeId, userName),
@@ -87,7 +96,7 @@ export function useTransactions({ preset, order, search }: HistoryFilters) {
     return () => {
       active = false;
     };
-  }, [key, preset, order, search, userId, storeId, userName, cashierId]);
+  }, [key, preset, fromDay, toDay, order, search, userId, storeId, userName, cashierId]);
 
   // Sync status can change while the screen is open (a finished sync here or in another tab).
   // Re-read the outbox when the sync manager reports a change or the user comes back, so badges

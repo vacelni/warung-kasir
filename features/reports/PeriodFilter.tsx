@@ -1,4 +1,4 @@
-import { Input } from '@/components/ui/Input';
+import { DateRangeFields } from '@/components/ui/DateRangeFields';
 import { cx } from '@/lib/cx';
 import { REPORT_PERIODS, REPORT_PERIOD_LABELS, type ReportPeriod } from './range';
 
@@ -48,27 +48,13 @@ export function PeriodFilter({
       </div>
 
       {period === 'custom' && (
-        <div className="flex flex-col gap-2">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              type="date"
-              label="Dari tanggal"
-              value={fromDay}
-              onChange={(event) => onFromDayChange(event.target.value)}
-            />
-            <Input
-              type="date"
-              label="Sampai tanggal"
-              value={toDay}
-              onChange={(event) => onToDayChange(event.target.value)}
-            />
-          </div>
-          {customError && (
-            <p role="alert" className="text-caption font-medium text-danger-ink">
-              {customError}
-            </p>
-          )}
-        </div>
+        <DateRangeFields
+          fromDay={fromDay}
+          toDay={toDay}
+          onFromDayChange={onFromDayChange}
+          onToDayChange={onToDayChange}
+          error={customError}
+        />
       )}
     </div>
   );

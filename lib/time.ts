@@ -93,3 +93,53 @@ export function formatJakartaTimestamp(instant: Date): string {
   if (Number.isNaN(instant.getTime())) throw new RangeError('Invalid date.');
   return `${new Date(instant.getTime() + JAKARTA_UTC_OFFSET_MS).toISOString().slice(0, -1)}+07:00`;
 }
+
+// ---------------------------------------------------------------------------
+// Day ranges picked in date inputs ("YYYY-MM-DD", both days inclusive), shared by the report
+// filter (UI_SPEC A.16) and the history filter (A.15). Days are Asia/Jakarta days.
+// ---------------------------------------------------------------------------
+
+const DAY_INPUT = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** "2026-08-10" → "20260810" when it is a real calendar date, otherwise null. */
+function dayInputKey(input: string): string | null {
+  const match = DAY_INPUT.exec(input);
+  if (!match) return null;
+  const key = `${match[1]}${match[2]}${match[3]}`;
+  try {
+    jakartaDayStartOfKey(key);
+  } catch (error) {
+    if (error instanceof RangeError) return null;
+    throw error;
+  }
+  return key;
+}
+
+/** Number of whole Asia/Jakarta days in [from, to). Jakarta has no daylight saving, so a day is 24 hours. */
+export function countJakartaDays(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / DAY_MS);
+}
+
+/** A message for an unusable day range, or null when it is fine. */
+export function validateDayRange(fromDay: string, toDay: string, maxDays: number): string | null {
+  const from = dayInputKey(fromDay);
+  const to = dayInputKey(toDay);
+  if (from === null || to === null) return 'Isi tanggal awal dan tanggal akhir.';
+  if (from > to) return 'Tanggal awal tidak boleh setelah tanggal akhir.';
+  const days = countJakartaDays(jakartaDayStartOfKey(from), jakartaDayStartOfKey(to, 1));
+  if (days > maxDays) return `Rentang tanggal terlalu panjang (maksimal ${maxDays} hari).`;
+  return null;
+}
+
+/** The instants [from, to) a valid day range covers. Throws a RangeError for an unusable one. */
+export function dayRangeInstants(fromDay: string, toDay: string, maxDays: number): { from: Date; to: Date } {
+  const problem = validateDayRange(fromDay, toDay, maxDays);
+  if (problem) throw new RangeError(problem);
+  return { from: jakartaDayStartOfKey(dayInputKey(fromDay)!), to: jakartaDayStartOfKey(dayInputKey(toDay)!, 1) };
+}
+
+/** Today's Asia/Jakarta date as "YYYY-MM-DD", plus an optional day offset; the value a date input takes. */
+export function jakartaDayInput(now: Date, dayOffset = 0): string {
+  const key = jakartaDateKey(jakartaDayStart(now, dayOffset));
+  return `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
+}
