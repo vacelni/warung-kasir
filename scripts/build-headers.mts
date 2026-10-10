@@ -12,6 +12,7 @@ import {
   findInlineAttribute,
   inlineScripts,
   PRODUCTION_ENV_FILES,
+  requirePublishableKey,
   scriptHash,
   supabaseOrigin,
   withContentSecurityPolicy,
@@ -29,6 +30,8 @@ async function main() {
   // The same value, from the same .env files in the same order, that `next build` inlined.
   const files = await Promise.all(PRODUCTION_ENV_FILES.map((file) => readFile(path.join(root, file), 'utf8').catch(() => null)));
   const supabase = supabaseOrigin(buildEnvValue('NEXT_PUBLIC_SUPABASE_URL', process.env, files));
+  // The bundle is already built at this point: a missing key means it cannot log anyone in.
+  requirePublishableKey(buildEnvValue('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', process.env, files));
   const pages = await htmlFiles(outDir);
   if (pages.length === 0) throw new Error('out/ has no HTML. Run `next build` first.');
 

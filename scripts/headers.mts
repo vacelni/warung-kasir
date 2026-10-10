@@ -69,6 +69,20 @@ export function buildEnvValue(name: string, processEnv: Record<string, string | 
   return undefined;
 }
 
+/**
+ * The publishable key the bundle was built with. Required: without it every visitor sees
+ * "Tidak dapat terhubung ke server" (the client cannot be created), so the build must fail rather
+ * than publish that site. Only a publishable key is accepted, never a secret key.
+ */
+export function requirePublishableKey(key: string | undefined): string {
+  if (!key) throw new Error('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY must be set: the app cannot reach Supabase without it.');
+  if (!key.startsWith('sb_publishable_') && key.split('.').length !== 3) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY must be the publishable key (sb_publishable_...).');
+  }
+  if (key.startsWith('sb_secret_')) throw new Error('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY holds a secret key.');
+  return key;
+}
+
 /** Origin (scheme://host[:port]) of the Supabase project URL the bundle talks to. */
 export function supabaseOrigin(url: string | undefined): string {
   if (!url) throw new Error('NEXT_PUBLIC_SUPABASE_URL must be set to build the Content-Security-Policy.');

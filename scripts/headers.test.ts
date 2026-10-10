@@ -6,6 +6,7 @@ import {
   findInlineAttribute,
   inlineScripts,
   MAX_HEADER_LINE,
+  requirePublishableKey,
   scriptHash,
   supabaseOrigin,
   withContentSecurityPolicy,
@@ -158,5 +159,22 @@ describe('buildEnvValue (the URL next build inlined, without @next/env)', () => 
 
   it('is undefined when nothing sets it, so the build fails with a clear message', () => {
     expect(buildEnvValue(NAME, { [NAME]: '' }, [null, 'OTHER=1', null, null])).toBeUndefined();
+  });
+});
+
+describe('requirePublishableKey (a build without the key must not be published)', () => {
+  it('accepts a publishable key or a legacy anon JWT', () => {
+    expect(requirePublishableKey('sb_publishable_abc123')).toBe('sb_publishable_abc123');
+    expect(requirePublishableKey('aaa.bbb.ccc')).toBe('aaa.bbb.ccc');
+  });
+
+  it('refuses a missing or empty key', () => {
+    expect(() => requirePublishableKey(undefined)).toThrow(/must be set/);
+    expect(() => requirePublishableKey('')).toThrow(/must be set/);
+  });
+
+  it('refuses a secret key or anything that is not a publishable key', () => {
+    expect(() => requirePublishableKey('sb_secret_abc123')).toThrow(/publishable key/);
+    expect(() => requirePublishableKey('not-a-key')).toThrow(/publishable key/);
   });
 });
