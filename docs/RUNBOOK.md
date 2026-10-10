@@ -322,8 +322,12 @@ Open `/kasir.html` and confirm the redirect to `/kasir` carries the same headers
   version's service worker takes over at the next app launch. Pending sales stay in each device's
   outbox.
 - **Database:** forward-only. Before each production migration the owner exports CSV (Backup /
-  Export) and the operator saves `npx supabase db dump --linked -f backup-<date>.sql` *(approval;
-  contains business data: store it privately, never in git)*. A faulty migration is fixed by a new
+  Export) and the operator saves a dump *(approval)*:
+  `npx supabase db dump --linked --data-only -f <outside-repo>/kasir-data-<date>.sql` (plus
+  `npx supabase db dump --linked -f <outside-repo>/kasir-schema-<date>.sql`). The data dump includes
+  the `auth` schema — login accounts with password hashes, sessions and refresh tokens — as well as
+  the business data: keep it outside the repository, encrypted (e.g. 7-Zip AES-256), never in git,
+  never shared. Checked on 2026-10-10. A faulty migration is fixed by a new
   migration, never by editing an applied one.
 - **Edge Function:** redeploy the previous version from git *(approval)*:
   `git checkout <commit> -- supabase/functions` then `npx supabase functions deploy admin-cashier`.
