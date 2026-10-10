@@ -56,8 +56,8 @@ Status: ✅ met · ❌ not met · ⬜ not yet checked (external/manual).
 |---|---|---|
 | Migrations reviewed; replay from zero | `supabase db reset` + pgTAP; RELEASE_NOTES migration list | ✅ |
 | Deployment, backup, recovery, rollback instructions | RUNBOOK §2, §3, §5, §6–§9 | ✅ written / ⬜ exercised |
-| Production smoke test | RUNBOOK §7.7 | ⬜ EXTERNAL |
-| Real Android device test | RUNBOOK §7.7 steps 1, 5, 6 | ⬜ MANUAL |
+| Production smoke test | RUNBOOK §7.7 steps 1–4 and A–E passed on https://warungkasir.pages.dev (PHASE_LOG) | ✅ |
+| Real Android device test | Install, offline sale, kill app, reconnect, sync once, offline logout: passed (PHASE_LOG) | ✅ |
 | Owner briefing: CSV export routine, free-tier pause, shared-device guidance, "Cek waktu" | RUNBOOK §4, §5, §9 | ⬜ MANUAL |
 
 ## Open decisions for the user
