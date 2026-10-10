@@ -57,6 +57,18 @@ Every PRD §43 Must Have and AC-01..AC-15 is implemented and has tests (coverage
 - Merge to `main`: approved and done (fast-forward). Remote + push of `main`: approved and done. Not authorized yet: production Supabase/Cloudflare projects,
   deployment, linked database operations, hosted Auth changes, secrets.
 
+## Handover decisions (user, 2026-10-10)
+
+- Supabase, GitHub and Cloudflare stay on the developer's personal accounts for now (the developer
+  receives platform notices and runs the monthly dump). Transfer to accounts owned by the warung later
+  (Supabase supports project transfer between organizations; a Pages project is recreated).
+- Production app owner login becomes `owner@bangtoyib.test` (a login-only address; no mailbox;
+  recovery via the dashboard, RUNBOOK §3). All trial data (menu, categories, transactions, trial
+  owner and cashier profiles) is removed; the store profile is kept. Script:
+  `supabase/snippets/go-live-reset.sql` (tested locally, rolled back).
+- Portfolio: a separate public copy with its own demo Supabase/Cloudflare on the developer's accounts,
+  never the production data (after the warung handover).
+
 ## Known defects / debt
 
 See `SECURITY_TRACKER.md` for security items. Other debt is listed in `ROADMAP.md` (Phase 13-prep).
