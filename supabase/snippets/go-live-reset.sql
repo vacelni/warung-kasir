@@ -9,6 +9,13 @@
 -- Before: take a dump (RUNBOOK §8). Replace <NEW_OWNER_EMAIL> and <OWNER_NAME>. Run once. Every check below aborts
 -- the whole script (nothing changes) when an assumption does not hold.
 
+-- EXECUTED ON PRODUCTION ON 2026-10-10. The store now holds real data: running this again would
+-- delete every sale and the whole menu. The first statement below stops the script on purpose; it
+-- is kept only as a record of what was done (and for a new, empty project).
+do $$ begin
+  raise exception 'go-live-reset.sql was already executed (2026-10-10) and deletes all data. Not run.';
+end $$;
+
 begin;
 
 do $$

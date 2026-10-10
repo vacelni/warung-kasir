@@ -9,8 +9,8 @@ Status: ✅ met · ❌ not met · ⬜ not yet checked (external/manual).
 | State | Status |
 |---|---|
 | Ready for deployment — local evidence | **READY**: every RUNBOOK §6 gate passed on `81dfa99` (code identical to `7051314`); Playwright 516 passed / 0 failed / 210 skipped (restrictions only) of 726 |
-| Deployed | **NO** — no hosted Supabase project, no Cloudflare project, no git remote |
-| Verified in production | **NO** — RUNBOOK §7.6–7.7 after an approved deployment |
+| Deployed | **YES** — https://warungkasir.pages.dev, Supabase project `ojzhdnoknssbmlkejpha`, repo github.com/vacelni/kasir (private) |
+| Verified in production | **YES** — header/CSP checks, smoke test and Android device test passed; trial data removed and real owner set (2026-10-10) |
 
 ## PRD §53 Definition of Done
 
