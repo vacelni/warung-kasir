@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Dialog } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { ToggleButton } from '@/components/ui/ToggleButton';
+import { useToast } from '@/components/ui/Toast';
 import { createGroup, updateGroup } from './api';
 import { ChoiceEditor } from './ChoiceEditor';
 import type { OptionGroup } from './model';
@@ -41,6 +42,7 @@ export function GroupForm({ open, group, storeId, usedBy, onClose, onChanged, on
   const [nameError, setNameError] = useState<string>();
   const [failure, setFailure] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -57,8 +59,14 @@ export function GroupForm({ open, group, storeId, usedBy, onClose, onChanged, on
     if (group) {
       const result = await updateGroup(group.id, input);
       setSubmitting(false);
-      if (!result.ok) setFailure(result.message);
-      else await onChanged();
+      if (!result.ok) {
+        setFailure(result.message);
+        return;
+      }
+      // Saved: close the sheet. Staying open with no sign of change looked like a stuck button.
+      await onChanged();
+      onClose();
+      toast.show('Perubahan disimpan.', 'success');
       return;
     }
     const created = await createGroup(storeId, input);

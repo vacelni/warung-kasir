@@ -37,7 +37,7 @@ export function Sidebar({ profile }: { profile: Profile }) {
                       href={item.href}
                       aria-current={active ? 'page' : undefined}
                       className={cx(
-                        'flex min-h-12 items-center gap-3 rounded-control px-3 text-base',
+                        'flex min-h-11 items-center gap-3 rounded-control px-3 text-base',
                         active
                           ? 'bg-primary-soft font-semibold text-primary-ink'
                           : 'font-medium text-foreground hover:bg-subtle active:bg-subtle',

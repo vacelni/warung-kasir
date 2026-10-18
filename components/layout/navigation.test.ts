@@ -27,8 +27,14 @@ describe('sidebarSections (UI_SPEC A.23)', () => {
       'Karyawan',
       'Backup / Export',
       'Pengaturan',
+      'Sinkronisasi & Printer',
       'Tentang',
     ]);
+  });
+
+  it('links the owner sidebar to the page that holds the sync status and the printer', () => {
+    const items = sidebarSections('owner').flatMap((section) => section.items);
+    expect(items.find((item) => item.label === 'Sinkronisasi & Printer')?.href).toBe('/lainnya');
   });
 
   it('lists only Kasir, Riwayat, and Lainnya for the cashier', () => {

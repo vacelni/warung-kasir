@@ -31,6 +31,13 @@ const LAINNYA: NavItem = {
   alsoActiveFor: [...OWNER_MANAGEMENT, TENTANG].map((item) => item.href),
 };
 
+/**
+ * The owner's sidebar has no Lainnya tab, yet the sync status and printer setup live on that page
+ * (UI_SPEC A.7), so the sidebar links to it under a descriptive name. No `alsoActiveFor`: the
+ * management pages already have their own sidebar entries.
+ */
+const SYNC_AND_PRINTER: NavItem = { href: '/lainnya', label: 'Sinkronisasi & Printer', icon: 'more' };
+
 /** Only items the role may open. Reuses the Phase 2 route rules; this is UX, not authorization. */
 function visibleTo(role: Role, items: readonly NavItem[]): NavItem[] {
   return items.filter((item) => canAccessRoute(role, item.href));
@@ -47,7 +54,7 @@ export function sidebarSections(role: Role): NavSection[] {
   return [
     { items: [KASIR, RIWAYAT, LAPORAN] },
     { label: 'Kelola', items: [...OWNER_MANAGEMENT] },
-    { items: [TENTANG] },
+    { items: [SYNC_AND_PRINTER, TENTANG] },
   ];
 }
 

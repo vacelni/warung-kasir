@@ -126,6 +126,26 @@ describe('OptionGroupList (owner)', () => {
     expect(dialog().getByText('Belum ada pilihan. Tambahkan di bawah.')).toBeTruthy();
   });
 
+  it('saves changes to an existing group, closes the sheet, and says so', async () => {
+    await renderList();
+    fireEvent.click(screen.getByRole('button', { name: /Level/ }));
+    fireEvent.change(dialog().getByLabelText('Nama'), { target: { value: 'Level pedas' } });
+    fireEvent.click(dialog().getByRole('button', { name: 'SIMPAN PERUBAHAN' }));
+
+    await waitFor(() => expect(mocks.updateGroup).toHaveBeenCalledWith('g-level', { name: 'Level pedas', allowMultiple: false, required: true }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await screen.findByText('Perubahan disimpan.')).toBeTruthy();
+  });
+
+  it('keeps the sheet open and shows the reason when saving a group fails', async () => {
+    mocks.updateGroup.mockResolvedValue({ ok: false, message: 'Nama sudah dipakai.' });
+    await renderList();
+    fireEvent.click(screen.getByRole('button', { name: /Level/ }));
+    fireEvent.click(dialog().getByRole('button', { name: 'SIMPAN PERUBAHAN' }));
+
+    expect(await dialog().findByText('Nama sudah dipakai.')).toBeTruthy();
+  });
+
   it('refuses a blank name without calling the server', async () => {
     await renderList();
     fireEvent.click(screen.getAllByRole('button', { name: /TAMBAH GRUP/ })[0]!);

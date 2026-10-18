@@ -550,6 +550,7 @@ Halaman /pilihan, Owner saja, dari Lainnya → Pilihan Menu. Daftar grup: nama, 
 setiap pilihan: nama, "+Rp4.000" atau "Gratis", kotak centang "Tersedia" (hilangkan centang jika habis) dan "Terpilih otomatis" (pada grup pilih satu hanya satu yang dapat otomatis), tombol UBAH dan HAPUS;
 kotak centang langsung berubah saat diketuk dan kembali jika server menolak;
 tambah pilihan: Nama pilihan dan Tambahan harga (kosong atau 0 = gratis; hanya angka);
+SIMPAN PERUBAHAN pada grup yang sudah ada menutup sheet dan menampilkan "Perubahan disimpan."; jika gagal, sheet tetap terbuka dan menampilkan alasannya;
 HAPUS GRUP INI meminta konfirmasi dan menyebut berapa menu yang memakainya; transaksi lama tidak berubah.
 
 Memasang pada menu: Menu → Tambah/Edit menampilkan bagian "Pilihan menu" berisi kotak centang setiap grup; urutan centang menjadi urutan di kasir ("Urutan 1 · Wajib · 3 pilihan"). Baris menu menampilkan "N pilihan".
@@ -657,6 +658,8 @@ Desktop layout:
 └──────────────┴──────────────────────────┘
 
 Sidebar menampilkan seluruh route yang diizinkan untuk role user. Untuk Cashier: Kasir, Riwayat, dan item Lainnya untuk Cashier (A.7).
+
+Owner tidak memiliki tab Lainnya di sidebar, sehingga sidebar memuat item "Sinkronisasi & Printer" (menuju halaman Lainnya) agar Status sinkronisasi dan Printer struk (A.7, A.24) dapat dijangkau di laptop dan tablet.
 
 Mobile menggunakan bottom navigation.
 

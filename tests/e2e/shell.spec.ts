@@ -98,6 +98,7 @@ test.describe('desktop layout', () => {
       'Karyawan',
       'Backup / Export',
       'Pengaturan',
+      'Sinkronisasi & Printer',
       'Tentang',
     ]);
     await expect(page.getByRole('navigation', { name: 'Navigasi utama' })).toBeHidden();
@@ -108,6 +109,12 @@ test.describe('desktop layout', () => {
     await expect(page).toHaveURL(/\/karyawan$/);
     await expect(sidebar.getByRole('link', { name: 'Karyawan' })).toHaveAttribute('aria-current', 'page');
     expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+
+    // The sync status and the printer live on Lainnya; the sidebar must reach them too.
+    await sidebar.getByRole('link', { name: 'Sinkronisasi & Printer' }).click();
+    await expect(page).toHaveURL(/\/lainnya$/);
+    await expect(page.getByRole('region', { name: 'Status sinkronisasi' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Printer struk' })).toBeVisible();
 
     await page.getByRole('complementary').getByRole('button', { name: 'Keluar' }).click();
     await expect(page).toHaveURL(/\/login$/);
