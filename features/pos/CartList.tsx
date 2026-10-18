@@ -5,12 +5,18 @@ import { useState } from 'react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
-import { itemSubtotal } from '@/lib/cart';
+import { itemSubtotal, type CartItem } from '@/lib/cart';
 import { formatRupiah } from '@/lib/money';
+import { summarizeOptions } from '@/lib/options';
 import { BackHeader } from './BackHeader';
 import { useCart } from './CartProvider';
 import { DockedBar } from './DockedBar';
 import { QuantityStepper } from './QuantityStepper';
+
+/** Name of a line for screen readers: the product plus its choices ("Geprek, Pakai nasi · Level 3"). */
+function lineLabel(item: CartItem): string {
+  return item.options.length > 0 ? `${item.name}, ${summarizeOptions(item.options)}` : item.name;
+}
 
 /** The order: lines with quantity controls, subtotal, total (UI_SPEC A.11). Every change is local. */
 export function CartList() {
@@ -40,28 +46,35 @@ export function CartList() {
       ) : (
         <>
           <ul className="flex flex-col gap-3">
-            {cart.map((item) => (
-              <li key={item.productId} className="rounded-card border border-border bg-surface p-3">
+            {cart.map((item) => {
+              // Two lines of one product differ by their choices, so the label must say which one.
+              const label = lineLabel(item);
+              return (
+              <li key={item.lineId} className="rounded-card border border-border bg-surface p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-base font-semibold break-words text-foreground">{item.name}</p>
+                    {item.options.length > 0 && (
+                      <p className="text-body break-words text-foreground">{summarizeOptions(item.options)}</p>
+                    )}
+                    {item.note && <p className="text-body break-words text-muted">Catatan: {item.note}</p>}
                     <p className="text-body text-muted">{formatRupiah(item.unitPrice)}</p>
                   </div>
                   <Button
                     variant="danger-outline"
                     className="shrink-0 px-4"
-                    aria-label={`Hapus ${item.name}`}
-                    onClick={() => remove(item.productId)}
+                    aria-label={`Hapus ${label}`}
+                    onClick={() => remove(item.lineId)}
                   >
                     Hapus
                   </Button>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <QuantityStepper
-                    name={item.name}
+                    name={label}
                     quantity={item.quantity}
-                    onDecrease={() => decrease(item.productId)}
-                    onIncrease={() => increase(item.productId)}
+                    onDecrease={() => decrease(item.lineId)}
+                    onIncrease={() => increase(item.lineId)}
                   />
                   <p className="text-right text-price font-bold text-foreground">
                     <span className="sr-only">Subtotal </span>
@@ -69,7 +82,8 @@ export function CartList() {
                   </p>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
 
           {/* Kept away from the pay button on purpose (UI_SPEC A.6). */}

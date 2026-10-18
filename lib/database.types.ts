@@ -25,6 +25,72 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"option_choices": {
+                  Row: {
+                    "created_at": string,"group_id": string,"id": string,"is_active": boolean,"is_default": boolean,"name": string,"position": number,"price_delta": number,"store_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"group_id": string,"id"?: string,"is_active"?: boolean,"is_default"?: boolean,"name": string,"position"?: number,"price_delta"?: number,"store_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"group_id"?: string,"id"?: string,"is_active"?: boolean,"is_default"?: boolean,"name"?: string,"position"?: number,"price_delta"?: number,"store_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "option_choices_group_fkey"
+      columns: ["group_id","store_id"]
+isOneToOne: false
+      referencedRelation: "option_groups"
+      referencedColumns: ["id","store_id"]
+    }
+                  ]
+                },"option_groups": {
+                  Row: {
+                    "allow_multiple": boolean,"created_at": string,"id": string,"name": string,"required": boolean,"store_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "allow_multiple"?: boolean,"created_at"?: string,"id"?: string,"name": string,"required"?: boolean,"store_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "allow_multiple"?: boolean,"created_at"?: string,"id"?: string,"name"?: string,"required"?: boolean,"store_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "option_groups_store_id_fkey"
+      columns: ["store_id"]
+isOneToOne: false
+      referencedRelation: "stores"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"product_option_groups": {
+                  Row: {
+                    "created_at": string,"group_id": string,"position": number,"product_id": string,"store_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"group_id": string,"position"?: number,"product_id": string,"store_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"group_id"?: string,"position"?: number,"product_id"?: string,"store_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "product_option_groups_group_fkey"
+      columns: ["group_id","store_id"]
+isOneToOne: false
+      referencedRelation: "option_groups"
+      referencedColumns: ["id","store_id"]
+    },{
+      foreignKeyName: "product_option_groups_product_fkey"
+      columns: ["product_id","store_id"]
+isOneToOne: false
+      referencedRelation: "products"
+      referencedColumns: ["id","store_id"]
+    }
+                  ]
                 },"products": {
                   Row: {
                     "category_id": string,"created_at": string,"id": string,"is_active": boolean,"name": string,"price": number,"store_id": string,"updated_at": string
@@ -87,14 +153,14 @@ isOneToOne: false
                   ]
                 },"transaction_items": {
                   Row: {
-                    "id": string,"product_id": string,"product_name": string,"quantity": number,"store_id": string,"subtotal": number,"transaction_id": string,"unit_price": number
+                    "id": string,"note": string | null,"options": NonNullable<Json>,"product_id": string,"product_name": string,"quantity": number,"store_id": string,"subtotal": number,"transaction_id": string,"unit_price": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "id"?: string,"product_id": string,"product_name": string,"quantity": number,"store_id": string,"subtotal": number,"transaction_id": string,"unit_price": number
+                    "id"?: string,"note"?: string | null,"options"?: NonNullable<Json>,"product_id": string,"product_name": string,"quantity": number,"store_id": string,"subtotal": number,"transaction_id": string,"unit_price": number
                   }
                   Update: {
-                    "id"?: string,"product_id"?: string,"product_name"?: string,"quantity"?: number,"store_id"?: string,"subtotal"?: number,"transaction_id"?: string,"unit_price"?: number
+                    "id"?: string,"note"?: string | null,"options"?: NonNullable<Json>,"product_id"?: string,"product_name"?: string,"quantity"?: number,"store_id"?: string,"subtotal"?: number,"transaction_id"?: string,"unit_price"?: number
                   }
                   Relationships: [
                     {
@@ -145,6 +211,9 @@ isOneToOne: false
           Functions: {
             "create_transaction":
 { Args: { "p_change_amount": number,"p_code": string,"p_created_at": string,"p_id": string,"p_items": Json,"p_paid_amount": number,"p_total": number }; Returns: string
+                           },
+"revoke_user_sessions":
+{ Args: { "p_user_id": string }; Returns: number
                            },
 "sales_series":
 { Args: { "p_bucket": string,"p_from": string,"p_to": string }; Returns: {

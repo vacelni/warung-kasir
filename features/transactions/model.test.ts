@@ -73,8 +73,8 @@ describe('detailFromOutbox', () => {
     const detail = detailFromOutbox(outbox(), 'Andi');
 
     expect(detail.lines).toEqual([
-      { productName: 'Es Teh', unitPrice: 5000, quantity: 2, subtotal: 10000 },
-      { productName: 'Nasi Goreng', unitPrice: 15000, quantity: 2, subtotal: 30000 },
+      { productName: 'Es Teh', unitPrice: 5000, quantity: 2, subtotal: 10000, options: [], note: null },
+      { productName: 'Nasi Goreng', unitPrice: 15000, quantity: 2, subtotal: 30000, options: [], note: null },
     ]);
     expect(detail.createdAt).toBe('2026-10-07T03:32:00.000Z');
   });
@@ -83,8 +83,8 @@ describe('detailFromOutbox', () => {
 describe('sortLines', () => {
   it('orders by name and does not change its input', () => {
     const lines = [
-      { productName: 'Teh', unitPrice: 1, quantity: 1, subtotal: 1 },
-      { productName: 'Air', unitPrice: 1, quantity: 1, subtotal: 1 },
+      { productName: 'Teh', unitPrice: 1, quantity: 1, subtotal: 1, options: [], note: null },
+      { productName: 'Air', unitPrice: 1, quantity: 1, subtotal: 1, options: [], note: null },
     ];
     expect(sortLines(lines).map((line) => line.productName)).toEqual(['Air', 'Teh']);
     expect(lines[0]?.productName).toBe('Teh');
@@ -232,5 +232,59 @@ describe('groupByDay (Asia/Jakarta)', () => {
 
   it('returns no groups for no entries', () => {
     expect(groupByDay([])).toEqual([]);
+  });
+});
+
+describe('options on a sold line (DATABASE D.12)', () => {
+  const geprek = (level: string, price = 0) => ({
+    product_id: 'geprek',
+    product_name: 'Geprek',
+    unit_price: 12000 + price,
+    quantity: 1,
+    subtotal: 12000 + price,
+    options: [{ group: 'Level', name: level, price }],
+    note: null,
+  });
+
+  it('carries the chosen options and the note from the device copy of the sale', () => {
+    const entry = outbox({
+      items: [{ ...geprek('Level 3'), note: 'sambal dipisah' }],
+      total: 12000,
+      paid_amount: 15000,
+      change_amount: 3000,
+    });
+    expect(detailFromOutbox(entry, 'Andi').lines).toEqual([
+      {
+        productName: 'Geprek',
+        unitPrice: 12000,
+        quantity: 1,
+        subtotal: 12000,
+        options: [{ group: 'Level', name: 'Level 3', price: 0 }],
+        note: 'sambal dipisah',
+      },
+    ]);
+  });
+
+  it('reads a sale saved before options existed as a line with no options and no note', () => {
+    const legacy = outbox({
+      items: [{ product_id: 'nasi', product_name: 'Nasi Goreng', unit_price: 15000, quantity: 1, subtotal: 15000 }],
+    });
+    expect(detailFromOutbox(legacy, 'Andi').lines[0]).toMatchObject({ options: [], note: null });
+  });
+
+  it('keeps lines of the same product in a fixed order by price, then by choices', () => {
+    const lines = [geprek('Level 5', 3000), geprek('Level 5'), geprek('Level 1')].map((item) => ({
+      productName: item.product_name,
+      unitPrice: item.unit_price,
+      quantity: item.quantity,
+      subtotal: item.subtotal,
+      options: item.options,
+      note: item.note,
+    }));
+    expect(sortLines(lines).map((line) => [line.unitPrice, line.options[0]?.name])).toEqual([
+      [12000, 'Level 1'],
+      [12000, 'Level 5'],
+      [15000, 'Level 5'],
+    ]);
   });
 });

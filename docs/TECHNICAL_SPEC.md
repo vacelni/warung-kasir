@@ -275,7 +275,9 @@ failed
 
 Record outbox menyimpan:
 
-id (uuid), code, store_id, cashier_id, created_at (waktu penjualan), items (product_id, product_name, unit_price, quantity, subtotal), total, paid_amount, change_amount, sync_status, attempts, last_error, last_attempt_at.
+id (uuid), code, store_id, cashier_id, created_at (waktu penjualan), items (product_id, product_name, unit_price, quantity, subtotal, options, note), total, paid_amount, change_amount, sync_status, attempts, last_error, last_attempt_at.
+
+options dan note (DATABASE D.12) tidak ada pada entri yang disimpan sebelum fitur pilihan menu; entri lama dibaca sebagai tanpa pilihan dan dikirim sebagai [] dan null. Skema IndexedDB tidak berubah.
 
 Sinkronisasi dipicu saat:
 
@@ -381,6 +383,39 @@ chart library (gunakan SVG sederhana);
 UI component library;
 next-pwa;
 @supabase/ssr.
+
+C.17 Product Options (pilihan menu)
+
+Layar kasir menampilkan menu utama (Geprek, Bakar, Nyemek, Bebek, ...). Menu yang memiliki grup pilihan membuka bottom sheet pilihan; menu tanpa grup langsung masuk ke pesanan seperti sebelumnya.
+
+Ketentuan:
+
+seluruh pilihan dikerjakan lokal: tidak ada request server untuk membuka sheet, memilih, atau menambah (C.9);
+logika murni berada di lib/options.ts (aturan pilih satu/banyak, wajib/opsional, default, ringkasan teks) dan lib/cart.ts; UI hanya memanggilnya;
+baris keranjang dibedakan oleh lineId: untuk menu biasa sama dengan product id; untuk menu berpilihan juga memuat id pilihan (urutan tidak berpengaruh) dan catatan. Pilihan yang sama digabung menjadi satu baris dengan quantity lebih besar; pilihan berbeda menjadi baris terpisah. Batas 200 baris (D.9) menghitung baris, bukan menu;
+unit_price baris = harga menu + jumlah price_delta pilihan yang dipilih; subtotal dan total memakai rumus yang sama seperti sebelumnya (integer Rupiah);
+snapshot transaksi memuat options [{group, name, price}] dan note; pilihan tidak direferensikan dengan id, sehingga riwayat tidak berubah saat Owner mengubah pilihan;
+katalog offline (C.10) menyimpan grup pilihan di dalam setiap produk; snapshot lama tanpa grup dibaca sebagai tanpa pilihan. Jika pilihan tidak dapat dibaca saat memuat katalog, seluruh pemuatan gagal dan salinan perangkat dipakai: menu berpilihan tidak pernah dijual tanpa pilihannya;
+pilihan yang ditandai habis (is_active = false) disembunyikan dari kasir; grup wajib yang semua pilihannya habis membuat menu tidak dapat dipesan dan kasir diberi tahu;
+struk di layar, struk cetak (C.16), detail riwayat, dan export CSV menampilkan pilihan dan catatan dari snapshot. Printer thermal memakai koma sebagai pemisah karena titik tengah tidak ada di code page printer;
+urutan deploy: migration database (db push, dengan persetujuan) SEBELUM aplikasi baru dipublikasikan. Aplikasi baru membaca tabel pilihan saat memuat katalog; tanpa migration, katalog gagal dimuat dan kasir memakai salinan perangkat. Aplikasi lama tetap berjalan terhadap database baru (RPC menerima item tanpa options).
+
+C.16 Receipt Printing (Bluetooth)
+
+Cetak struk ke printer thermal portable melalui Web Bluetooth (Chrome Android/desktop). Fitur ini tidak mengubah database, RPC, RLS, atau alur transaksi: struk dicetak dari data yang sudah ada (outbox atau detail transaksi).
+
+Ketentuan:
+
+hanya printer Bluetooth LE yang dapat dijangkau halaman web; printer Bluetooth Classic (SPP) tidak didukung. Safari/iOS dan Firefox tidak mendukung Web Bluetooth: tombol tetap tampil dan menjelaskan hal itu;
+tidak ada package baru (C.15): perintah ESC/POS dibuat sendiri (features/printer/escpos.ts), tipe Web Bluetooth yang dipakai dideklarasikan lokal (features/printer/bluetooth.ts);
+isi struk sama dengan LIHAT STRUK (UI_SPEC A.15); teks diubah ke ASCII (aksen dibuang, karakter lain menjadi "?") karena printer memakai code page satu byte; lebar baris 32 karakter (kertas 58 mm) atau 48 (80 mm); tanggal dan waktu WIB (C.13); tanpa perintah potong kertas;
+mencetak selalu aksi manual (tap). Kegagalan printer, kertas habis, atau printer mati tidak pernah memengaruhi transaksi yang sudah tersimpan di outbox, dan tidak ada transaksi yang ditahan menunggu printer;
+chooser perangkat browser hanya dapat dibuka dari tap pengguna, jadi printer dipilih lebih dulu, baru data warung dibaca;
+pilihan printer (id dan nama perangkat dari browser) dan lebar kertas disimpan di localStorage perangkat (kunci wk-printer): data milik perangkat ini, tanpa credential atau data bisnis, tidak dikirim ke server, dan bukan bagian dari outbox. Jika localStorage tidak tersedia, nilai bawaan (58 mm, belum dipasang) dipakai;
+data dikirim dalam potongan kecil (100 byte jika printer mengakui penulisan, 20 byte dengan jeda jika tidak) agar buffer printer kecil tidak meluap;
+Permissions-Policy tidak menyebut bluetooth, sehingga Web Bluetooth tetap diizinkan untuk origin aplikasi sendiri; CSP tidak mengatur Web Bluetooth.
+
+Pairing dan lebar kertas ada di Lainnya untuk semua role (printer dipasang di HP kasir). Tidak ada akses baru: Cashier hanya mencetak transaksi yang sudah dapat dilihatnya.
 
 # H. DEPLOYMENT SPECIFICATION
 

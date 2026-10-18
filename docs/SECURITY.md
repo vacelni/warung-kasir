@@ -112,6 +112,11 @@ transaction_items
   SELECT: mengikuti scope transaksi induk
   INSERT/UPDATE/DELETE: tidak ada (client) — hanya melalui RPC create_transaction
 
+option_groups, option_choices, product_option_groups (DATABASE D.12)
+  SELECT: anggota store (kasir membutuhkannya untuk menjual)
+  INSERT/UPDATE/DELETE: Owner; store_id harus store milik Owner; rujukan lintas store ditolak oleh foreign key komposit
+  Cashier tidak dapat mengubah pilihan atau harga tambahannya.
+
 Jangan menggunakan:
 
 using (true)
@@ -234,7 +239,7 @@ Edge Function tidak digunakan untuk integritas transaksi (gunakan RPC, DATABASE 
 
 E.12 Accepted Risks
 
-Harga snapshot dari client: RPC menerima unit_price dari cache client tanpa membandingkan dengan harga produk saat ini, agar penjualan offline yang sah tetap dapat disinkronkan. Server tetap memvalidasi kepemilikan produk, quantity, aritmetika, dan pembayaran. Risiko: Cashier secara teknis dapat mengirim harga berbeda melalui request langsung.
+Harga snapshot dari client: RPC menerima unit_price dari cache client tanpa membandingkan dengan harga produk saat ini, agar penjualan offline yang sah tetap dapat disinkronkan. Server tetap memvalidasi kepemilikan produk, quantity, aritmetika, dan pembayaran. Risiko: Cashier secara teknis dapat mengirim harga berbeda melalui request langsung. Hal yang sama berlaku untuk pilihan menu dan tambahan harganya (DATABASE D.12): bentuknya divalidasi dan jumlahnya harus konsisten dengan unit_price, tetapi tidak dibandingkan dengan definisi pilihan saat ini.
 
 Session token di localStorage: konsekuensi arsitektur SPA statis. Mitigasi: tanpa script pihak ketiga, tanpa dangerouslySetInnerHTML, Content-Security-Policy melalui header Cloudflare (dibuat saat build, tanpa 'unsafe-inline'/'unsafe-eval'; TECHNICAL_SPEC H.5). CSP membatasi script dan tujuan koneksi, tetapi tidak mencegah script yang sudah diizinkan membaca token; karena itu tidak boleh ada script pihak ketiga.
 

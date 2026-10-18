@@ -9,8 +9,10 @@ import { Alert } from '@/components/ui/Alert';
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { PrintReceiptButton } from '@/features/printer/PrintReceiptButton';
 import { BackHeader } from '@/features/pos/BackHeader';
 import { formatRupiah, type Money } from '@/lib/money';
+import { summarizeOptions } from '@/lib/options';
 import { useProfile } from '@/features/auth/AuthProvider';
 import type { StoreProfile } from '@/features/settings/validation';
 import { SALE_TIME_FLAG_REASONS, saleTimeFlag } from '@/lib/saleTimeFlag';
@@ -98,6 +100,7 @@ function DetailBody({ detail }: { detail: TransactionDetailData }) {
     return (
       <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
         <ReceiptView detail={detail} store={receipt.store} />
+        <PrintReceiptButton detail={detail} className="w-full" />
         <Button variant="secondary" className="w-full" onClick={() => setReceipt({ status: 'closed' })}>
           TUTUP STRUK
         </Button>
@@ -132,6 +135,10 @@ function DetailBody({ detail }: { detail: TransactionDetailData }) {
                 <span className="block text-body text-muted">
                   {formatRupiah(line.unitPrice)} × {line.quantity}
                 </span>
+                {line.options.length > 0 && (
+                  <span className="block text-body break-words text-foreground">{summarizeOptions(line.options)}</span>
+                )}
+                {line.note && <span className="block text-body break-words text-muted">Catatan: {line.note}</span>}
               </span>
               <span className="shrink-0 text-base font-semibold text-foreground">{formatRupiah(line.subtotal)}</span>
             </li>
@@ -161,6 +168,7 @@ function DetailBody({ detail }: { detail: TransactionDetailData }) {
       <Button variant="secondary" className="w-full" onClick={() => void openReceipt()} disabled={receipt.status === 'loading'}>
         {receipt.status === 'loading' ? 'MEMUAT…' : 'LIHAT STRUK'}
       </Button>
+      <PrintReceiptButton detail={detail} className="w-full" />
     </div>
   );
 }

@@ -1,8 +1,14 @@
 import type { Category } from '@/features/categories/api';
 import type { Product } from '@/features/products/api';
+import type { CatalogOptionGroup } from '@/lib/options';
 
-/** What the cashier screen needs of a product; the catalog only ever contains active ones. */
-export type CatalogProduct = Pick<Product, 'id' | 'name' | 'price' | 'categoryId'>;
+/**
+ * What the cashier screen needs of a product; the catalog only ever contains active ones.
+ * `optionGroups` is empty for a product that is added straight to the order (DATABASE D.12).
+ */
+export type CatalogProduct = Pick<Product, 'id' | 'name' | 'price' | 'categoryId'> & {
+  optionGroups: readonly CatalogOptionGroup[];
+};
 export type CatalogCategory = Category;
 
 /** `categoryId` null = "Semua". */

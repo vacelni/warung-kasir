@@ -71,6 +71,9 @@ async function sendTransaction(entry: OutboxEntry): Promise<SendResult> {
           unit_price: item.unit_price,
           quantity: item.quantity,
           subtotal: item.subtotal,
+          // Sales saved before options existed have neither field: send "no options, no note".
+          options: (item.options ?? []).map((option) => ({ group: option.group, name: option.name, price: option.price })),
+          note: item.note ?? null,
         })),
       })
       .abortSignal(AbortSignal.timeout(RPC_TIMEOUT_MS));

@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { categoriesWithProducts, filterProducts, type CatalogProduct } from './filter';
 
 const PRODUCTS: CatalogProduct[] = [
-  { id: '1', name: 'Nasi Goreng', price: 15000, categoryId: 'makanan' },
-  { id: '2', name: 'Mie Goreng', price: 12000, categoryId: 'makanan' },
-  { id: '3', name: 'Es Teh', price: 5000, categoryId: 'minuman' },
-  { id: '4', name: 'Kerupuk', price: 2000, categoryId: 'snack' },
+  { id: '1', name: 'Nasi Goreng', price: 15000, categoryId: 'makanan', optionGroups: [] },
+  { id: '2', name: 'Mie Goreng', price: 12000, categoryId: 'makanan', optionGroups: [] },
+  { id: '3', name: 'Es Teh', price: 5000, categoryId: 'minuman', optionGroups: [] },
+  { id: '4', name: 'Kerupuk', price: 2000, categoryId: 'snack', optionGroups: [] },
 ];
 
 const names = (products: CatalogProduct[]) => products.map((product) => product.name);

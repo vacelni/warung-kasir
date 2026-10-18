@@ -27,7 +27,7 @@ const table = (name: string) => ({ columns: ['name'], rows: [[name]] });
 beforeEach(() => {
   mocks.downloadCsv.mockReset();
   mocks.loads.clear();
-  for (const key of ['store', 'categories', 'products', 'transactions', 'transaction_items', 'profiles']) {
+  for (const key of ['store', 'categories', 'products', 'option_choices', 'product_options', 'transactions', 'transaction_items', 'profiles']) {
     mocks.loads.set(key, () => Promise.resolve(table(key)));
   }
 });
@@ -84,15 +84,17 @@ describe('backup page', () => {
     await waitFor(() => expect(mocks.downloadCsv).toHaveBeenCalledTimes(1));
   });
 
-  it('Backup Data downloads all six files', async () => {
+  it('Backup Data downloads all eight files', async () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /BACKUP DATA/ }));
-    await waitFor(() => expect(mocks.downloadCsv).toHaveBeenCalledTimes(6), { timeout: 5000 });
+    await waitFor(() => expect(mocks.downloadCsv).toHaveBeenCalledTimes(8), { timeout: 5000 });
     const names = mocks.downloadCsv.mock.calls.map(([name]) => String(name).replace(/-\d{8}\.csv$/, ''));
     expect(names.sort()).toEqual(
-      ['item-transaksi', 'karyawan', 'kategori', 'menu', 'transaksi', 'warung'].map((slug) => `warungkasir-${slug}`),
+      ['item-transaksi', 'karyawan', 'kategori', 'menu', 'pilihan-menu', 'pilihan-per-menu', 'transaksi', 'warung'].map(
+        (slug) => `warungkasir-${slug}`,
+      ),
     );
-    expect(await screen.findByText('Backup selesai: 6 file CSV diunduh.')).toBeTruthy();
+    expect(await screen.findByText('Backup selesai: 8 file CSV diunduh.')).toBeTruthy();
   });
 
   it('downloads nothing from Backup Data when one table fails, and explains', async () => {

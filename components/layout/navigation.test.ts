@@ -22,6 +22,7 @@ describe('sidebarSections (UI_SPEC A.23)', () => {
       'Riwayat',
       'Laporan',
       'Menu',
+      'Pilihan Menu',
       'Kategori',
       'Karyawan',
       'Backup / Export',
@@ -40,6 +41,7 @@ describe('lainnyaManagementItems', () => {
   it('lists the owner management pages and nothing for the cashier', () => {
     expect(labels(lainnyaManagementItems('owner'))).toEqual([
       'Menu',
+      'Pilihan Menu',
       'Kategori',
       'Karyawan',
       'Backup / Export',

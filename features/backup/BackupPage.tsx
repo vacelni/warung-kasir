@@ -87,7 +87,7 @@ export function BackupPage() {
         </h2>
         <Card className="flex flex-col gap-3">
           <p className="text-body text-muted">
-            Mengunduh {DATASETS.length} file CSV sekaligus: transaksi, item transaksi, menu, kategori, profil warung, dan karyawan.
+            Mengunduh {DATASETS.length} file CSV sekaligus: transaksi, item transaksi, menu, pilihan menu, kategori, profil warung, dan karyawan.
             Browser mungkin meminta izin untuk mengunduh beberapa file.
           </p>
           <Button onClick={() => void exportAll()} disabled={busy !== null} className="w-full">

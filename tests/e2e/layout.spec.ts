@@ -155,7 +155,7 @@ test.describe('cashier', () => {
   });
 
   test('owner pages are refused with a readable message', async ({ page }) => {
-    for (const path of ['/laporan', '/menu', '/karyawan', '/pengaturan']) {
+    for (const path of ['/laporan', '/menu', '/pilihan', '/karyawan', '/pengaturan']) {
       await page.goto(path);
       await expect(page.getByRole('heading', { name: 'Akses ditolak' })).toBeVisible();
       await audit(page, `${path} (denied)`);
@@ -203,6 +203,13 @@ test.describe('owner', () => {
     await page.getByRole('button', { name: 'Aksi untuk Nasi Goreng' }).click();
     await expect(sheet(page)).toBeVisible();
     await audit(page, '/menu (actions sheet)');
+    await page.keyboard.press('Escape');
+
+    await openRoute(page, '/pilihan', () => expect(main(page).getByRole('heading', { name: 'Belum ada pilihan menu' })).toBeVisible());
+    await audit(page, '/pilihan (empty)');
+    await page.getByRole('button', { name: /TAMBAH GRUP/ }).first().click();
+    await expect(sheet(page)).toBeVisible();
+    await audit(page, '/pilihan (tambah grup sheet)');
     await page.keyboard.press('Escape');
 
     await openRoute(page, '/kategori', () => expect(main(page).getByRole('listitem').filter({ hasText: 'Minuman' })).toBeVisible());

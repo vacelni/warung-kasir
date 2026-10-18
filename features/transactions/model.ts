@@ -1,4 +1,6 @@
 import type { OutboxEntry, SyncStatus } from '@/features/offline/outbox';
+import type { OptionSnapshot } from '@/lib/checkout';
+import { summarizeOptions } from '@/lib/options';
 import type { Money } from '@/lib/money';
 import { formatJakartaDay, jakartaDateKey } from '@/lib/time';
 import type { HistoryOrder } from './filters';
@@ -37,12 +39,15 @@ export type HistoryEntry = {
   syncedAt: string | null;
 };
 
-/** One sold line, as frozen at the moment of sale (DATABASE D.7). */
+/** One sold line, as frozen at the moment of sale (DATABASE D.7, D.12). `unitPrice` already includes the options. */
 export type DetailLine = {
   productName: string;
   unitPrice: Money;
   quantity: number;
   subtotal: Money;
+  /** What was chosen for this line, as it was named and priced at the time of sale. */
+  options: OptionSnapshot[];
+  note: string | null;
 };
 
 export type TransactionDetail = HistoryEntry & { lines: DetailLine[] };
@@ -53,7 +58,13 @@ export function countUnits(lines: readonly { quantity: number }[]): number {
 
 /** Lines in a stable order. The server keeps no cart position, so both sources sort by name. */
 export function sortLines(lines: readonly DetailLine[]): DetailLine[] {
-  return [...lines].sort((a, b) => a.productName.localeCompare(b.productName, 'id') || a.unitPrice - b.unitPrice);
+  return [...lines].sort(
+    (a, b) =>
+      a.productName.localeCompare(b.productName, 'id') ||
+      a.unitPrice - b.unitPrice ||
+      summarizeOptions(a.options).localeCompare(summarizeOptions(b.options), 'id') ||
+      (a.note ?? '').localeCompare(b.note ?? '', 'id'),
+  );
 }
 
 /** Not yet confirmed by the server: waiting, being sent, or rejected. These must stay visible. */
@@ -90,6 +101,9 @@ export function detailFromOutbox(entry: OutboxEntry, cashierName: string): Trans
         unitPrice: item.unit_price,
         quantity: item.quantity,
         subtotal: item.subtotal,
+        // Sales saved on the device before options existed have neither field.
+        options: [...(item.options ?? [])],
+        note: item.note ?? null,
       })),
     ),
   };

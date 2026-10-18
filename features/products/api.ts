@@ -11,6 +11,8 @@ export type Product = {
 };
 
 export type SaveResult = { ok: true } | { ok: false; message: string };
+/** A created product's id is needed to attach its option groups right after (DATABASE D.12). */
+export type CreateResult = { ok: true; id: string } | { ok: false; message: string };
 
 type DbError = { code?: string; message: string };
 
@@ -58,19 +60,23 @@ export async function listActiveProducts(): Promise<Product[]> {
 }
 
 /** New products start active. `storeId` comes from the signed-in profile; RLS rejects any other store. */
-export async function createProduct(storeId: string, input: ProductInput): Promise<SaveResult> {
-  const { error } = await getSupabase().from('products').insert({
-    store_id: storeId,
-    category_id: input.categoryId,
-    name: input.name,
-    price: input.price,
-    is_active: true,
-  });
+export async function createProduct(storeId: string, input: ProductInput): Promise<CreateResult> {
+  const { data, error } = await getSupabase()
+    .from('products')
+    .insert({
+      store_id: storeId,
+      category_id: input.categoryId,
+      name: input.name,
+      price: input.price,
+      is_active: true,
+    })
+    .select('id')
+    .single();
   if (error) {
     console.error('Could not create the product:', error);
     return { ok: false, message: failureMessage(error, MESSAGES.save) };
   }
-  return { ok: true };
+  return { ok: true, id: data.id };
 }
 
 /** Sends only the three editable columns; store_id and is_active are not part of an edit (DATABASE D.11). */

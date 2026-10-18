@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeSupabase, type FakeResult, type RecordedQuery } from '@/lib/test-support/fakeSupabase';
-import { PAGE_SIZE, getTransaction, listTransactions, type HistoryQuery } from './api';
+import { PAGE_SIZE, getTransaction, listTransactions, parseOptionSnapshots, type HistoryQuery } from './api';
 
 const mocks = vi.hoisted(() => ({ supabase: null as unknown }));
 vi.mock('@/lib/supabase', () => ({ getSupabase: () => mocks.supabase }));
@@ -216,8 +216,15 @@ describe('listTransactions', () => {
 describe('getTransaction', () => {
   const detailRow = row(1, {
     transaction_items: [
-      { product_name: 'Nasi Goreng', unit_price: 15000, quantity: 2, subtotal: 30000 },
-      { product_name: 'Es Teh', unit_price: 5000, quantity: 2, subtotal: 10000 },
+      { product_name: 'Nasi Goreng', unit_price: 15000, quantity: 2, subtotal: 30000, options: [], note: null },
+      {
+        product_name: 'Es Teh',
+        unit_price: 5000,
+        quantity: 2,
+        subtotal: 10000,
+        options: [{ group: 'Es', name: 'Es sedikit', price: 0 }],
+        note: 'gelas besar',
+      },
     ],
   });
 
@@ -227,7 +234,7 @@ describe('getTransaction', () => {
     const detail = await getTransaction(detailRow.id);
 
     const select = queries[0]?.steps.find(([name]) => name === 'select');
-    expect(select?.[1]).toContain('transaction_items(product_name, unit_price, quantity, subtotal)');
+    expect(select?.[1]).toContain('transaction_items(product_name, unit_price, quantity, subtotal, options, note)');
     expect(queries[0]?.steps).toContainEqual(['eq', 'id', detailRow.id]);
     expect(queries[0]?.steps.some(([name]) => name === 'maybeSingle')).toBe(true);
     expect(queries[0]?.steps).toContainEqual(['retry', false]);
@@ -237,8 +244,15 @@ describe('getTransaction', () => {
       serverStatus: 'completed',
       itemCount: 4,
       lines: [
-        { productName: 'Es Teh', unitPrice: 5000, quantity: 2, subtotal: 10000 },
-        { productName: 'Nasi Goreng', unitPrice: 15000, quantity: 2, subtotal: 30000 },
+        {
+          productName: 'Es Teh',
+          unitPrice: 5000,
+          quantity: 2,
+          subtotal: 10000,
+          options: [{ group: 'Es', name: 'Es sedikit', price: 0 }],
+          note: 'gelas besar',
+        },
+        { productName: 'Nasi Goreng', unitPrice: 15000, quantity: 2, subtotal: 30000, options: [], note: null },
       ],
     });
   });
@@ -251,5 +265,27 @@ describe('getTransaction', () => {
   it('throws when the read fails, so the caller can tell "unreachable" from "not found"', async () => {
     useDatabase(() => failure('offline'));
     await expect(getTransaction(detailRow.id)).rejects.toThrow('Could not load the transaction: offline');
+  });
+});
+
+describe('parseOptionSnapshots', () => {
+  it('reads the options written by create_transaction', () => {
+    expect(
+      parseOptionSnapshots([
+        { group: 'Level', name: 'Level 3', price: 0 },
+        { group: 'Nasi', name: 'Pakai nasi', price: 4000 },
+      ]),
+    ).toEqual([
+      { group: 'Level', name: 'Level 3', price: 0 },
+      { group: 'Nasi', name: 'Pakai nasi', price: 4000 },
+    ]);
+  });
+
+  it('treats a missing or malformed value as no options, and skips a bad entry instead of showing it', () => {
+    expect(parseOptionSnapshots(null)).toEqual([]);
+    expect(parseOptionSnapshots({ group: 'Level' })).toEqual([]);
+    expect(parseOptionSnapshots([null, 'x', { group: 'Level' }, { group: 'Level', name: 'Level 1', price: 0 }])).toEqual([
+      { group: 'Level', name: 'Level 1', price: 0 },
+    ]);
   });
 });

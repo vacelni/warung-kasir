@@ -10,7 +10,10 @@ type ProductCardProps = {
   onAdd: (product: CatalogProduct) => void;
 };
 
-/** The whole card is the tap target (UI_SPEC A.9); the [+] is a visual cue only. */
+/**
+ * The whole card is the tap target (UI_SPEC A.9); the [+] is a visual cue only. A product with
+ * options opens the choice sheet instead of joining the order at once (UI_SPEC A.9a).
+ */
 export function ProductCard({ product, quantity, onAdd }: ProductCardProps) {
   const inCart = quantity > 0;
 
@@ -23,7 +26,10 @@ export function ProductCard({ product, quantity, onAdd }: ProductCardProps) {
         inCart ? 'border-primary' : 'border-border',
       )}
     >
-      <span className={cx('text-base font-semibold break-words text-foreground', inCart && 'pr-7')}>{product.name}</span>
+      <span className="flex flex-col gap-0.5">
+        <span className={cx('text-base font-semibold break-words text-foreground', inCart && 'pr-7')}>{product.name}</span>
+        {product.optionGroups.length > 0 && <span className="text-caption text-muted">Ada pilihan</span>}
+      </span>
       <span className="flex items-end justify-between gap-2">
         <span className="text-price font-bold text-foreground">{formatRupiah(product.price)}</span>
         <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white">

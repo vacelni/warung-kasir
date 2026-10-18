@@ -58,6 +58,16 @@ export function ProductList() {
   }
 
   const categories = state.status === 'ready' ? state.categories : [];
+  const groups = state.status === 'ready' ? state.groups : [];
+  const links = state.status === 'ready' ? state.links : [];
+  const groupCounts = new Map<string, number>();
+  for (const link of links) groupCounts.set(link.productId, (groupCounts.get(link.productId) ?? 0) + 1);
+  /** The groups a product shows, in order, for the edit sheet. */
+  const groupIdsOf = (productId: string) =>
+    links
+      .filter((link) => link.productId === productId)
+      .sort((a, b) => a.position - b.position)
+      .map((link) => link.groupId);
   const categoryNames = new Map(categories.map((category) => [category.id, category.name]));
   const selected = dialog && 'product' in dialog ? dialog.product : undefined;
   // A product needs a category, so adding is offered only once one exists.
@@ -117,6 +127,7 @@ export function ProductList() {
                 key={product.id}
                 product={product}
                 categoryName={categoryNames.get(product.categoryId) ?? '—'}
+                optionGroupCount={groupCounts.get(product.id) ?? 0}
                 onOpenActions={(target) => show({ type: 'actions', product: target })}
               />
             ))}
@@ -149,6 +160,8 @@ export function ProductList() {
         open={dialog?.type === 'create' || dialog?.type === 'edit'}
         product={dialog?.type === 'edit' ? dialog.product : undefined}
         categories={categories}
+        groups={groups}
+        initialGroupIds={dialog?.type === 'edit' ? groupIdsOf(dialog.product.id) : []}
         storeId={storeId}
         onClose={close}
         onSaved={saved}

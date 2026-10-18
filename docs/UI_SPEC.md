@@ -171,6 +171,7 @@ Karyawan
 Backup / Export
 Pengaturan
 Status sinkronisasi
+Printer struk
 Tentang
 Keluar
 
@@ -178,6 +179,7 @@ Cashier:
 
 Nama/profil (hanya tampilan)
 Status sinkronisasi + jumlah transaksi pending
+Printer struk
 Tentang
 Keluar
 A.8 Page: Login
@@ -256,6 +258,37 @@ Bottom cart:
 │ 3 item              Rp40.000   │
 │         [ LIHAT PESANAN ]       │
 └─────────────────────────────────┘
+A.9a Pilihan Menu di Kasir
+
+Kartu menu yang memiliki pilihan menampilkan keterangan "Ada pilihan". Mengetuknya membuka bottom sheet (bukan langsung menambah):
+
+┌─────────────────────────────────┐
+│ Geprek                        ✕ │
+│ Nasi [Opsional]                 │
+│ [ Pakai nasi +Rp4.000 ]         │
+│ Level [Wajib]                   │
+│ [ Level 1 ] [ Level 3 ]         │
+│ [ Level 5 ]                     │
+│ Bagian ayam [Wajib]             │
+│ [ Dada +Rp3.000 ] [ Paha ]      │
+│ Tambahan  bisa lebih dari satu  │
+│ [ Telur +Rp3.000 ]              │
+│ Catatan (opsional)              │
+│ Jumlah        [-]  1  [+]       │
+├─────────────────────────────────┤
+│ Pilih dulu: Level               │
+│ [ TAMBAH · Rp19.000 ]           │
+└─────────────────────────────────┘
+
+pilihan adalah tombol besar (minimal 48px) dengan aria-pressed; grup pilih satu berperilaku seperti radio (grup wajib tidak dapat dikosongkan; grup opsional dapat diketuk lagi untuk mengosongkan, mis. "tanpa nasi"); grup boleh-banyak berperilaku sebagai toggle;
+pilihan yang ditandai terpilih otomatis oleh Owner sudah terpilih saat sheet dibuka; sheet selalu dibuka dalam keadaan baru;
+tombol TAMBAH menampilkan harga akhir (harga × jumlah) dan nonaktif sampai semua grup wajib terisi; teks "Pilih dulu: ..." menyebut grup yang belum diisi (bukan hanya warna);
+footer (pesan dan tombol TAMBAH) menempel di bawah sheet selama isi menggulir; menutup sheet dengan tombol ✕ tidak mengubah pesanan;
+jika grup wajib tidak memiliki pilihan tersedia (semua habis), sheet menjelaskan "... sedang habis" dan TAMBAH nonaktif;
+setelah TAMBAH, menu masuk ke pesanan dan badge jumlah pada kartu menghitung semua baris menu itu.
+
+Di Pesanan (A.11) setiap baris menampilkan nama menu, ringkasan pilihan ("Pakai nasi · Level 3 · Dada"), catatan, harga satuan, stepper, dan subtotal. Tombol Hapus dan stepper punya nama aksesibel yang menyebut pilihannya.
+
 A.10 Empty Product State
 
 Jika belum ada menu:
@@ -375,7 +408,10 @@ Tersimpan • Menunggu sinkronisasi
 (atau: Tersinkron)
 
 [ LIHAT DETAIL ]
+[ CETAK STRUK ]
 [ TRANSAKSI BARU ]
+
+[ CETAK STRUK ] mengirim struk ke printer Bluetooth yang terpasang (A.15, TECHNICAL_SPEC C.16). Tidak pernah otomatis dan tidak menahan transaksi baru.
 
 Layar sukses tampil setelah transaksi tersimpan di perangkat (local outbox). Baris status menunjukkan status sinkronisasi saat ini.
 
@@ -422,6 +458,14 @@ item (nama × qty, subtotal), Total, Bayar, Kembalian;
 catatan struk (jika diisi);
 data warung diambil dari server saat online, atau dari snapshot katalog di perangkat saat offline (TECHNICAL_SPEC C.10); jika tidak tersedia, struk tetap tampil tanpa header warung;
 [ TUTUP STRUK ] kembali ke detail.
+
+Cetak ke printer Bluetooth portable (TECHNICAL_SPEC C.16):
+
+[ CETAK STRUK ] ada di halaman detail transaksi (juga saat struk terbuka) dan di layar sukses (A.14), untuk Owner dan Cashier, sehingga struk dapat dicetak ulang kapan saja;
+isi cetak sama dengan struk di layar; lebar 32 karakter (kertas 58 mm) atau 48 karakter (80 mm);
+tombol disabled selama mencetak; hasilnya ditulis sebagai teks: "Struk dikirim ke printer." atau pesan kegagalan yang menjelaskan apa yang dapat dilakukan (printer mati/jauh, bukan printer yang didukung, browser tidak mendukung). Menutup chooser perangkat bukan error;
+bagian "Printer struk" di Lainnya (semua role): status Terpasang/Belum dipasang dan nama printer, pilihan lebar kertas 58 mm / 80 mm, [ HUBUNGKAN PRINTER ] (atau [ GANTI PRINTER ]), [ CETAK TES ], [ LUPAKAN PRINTER ]. Pilihan disimpan di perangkat ini saja;
+transaksi tidak pernah bergantung pada printer: kegagalan cetak tidak mengubah status transaksi atau sinkronisasi.
 
 Waktu penjualan yang perlu dicek (SEC-06, hanya Owner):
 
@@ -496,6 +540,19 @@ Tidak ada aksi Hapus terpisah. "Menghapus menu" pada PRD diimplementasikan sebag
 Tidak ada hard delete produk pada MVP.
 
 Gambar produk ditunda (post-MVP).
+
+A.17a Pilihan Menu (Owner)
+
+Halaman /pilihan, Owner saja, dari Lainnya → Pilihan Menu. Daftar grup: nama, "Wajib/Opsional", "Pilih satu/Boleh banyak", "Dipakai di N menu", dan pratinjau pilihan.
+
+[+ TAMBAH GRUP] membuka sheet: Nama, Cara memilih (Pilih satu / Boleh banyak), Wajib dipilih. Setelah disimpan, sheet yang sama beralih ke mode ubah dengan bagian "Isi pilihan":
+
+setiap pilihan: nama, "+Rp4.000" atau "Gratis", kotak centang "Tersedia" (hilangkan centang jika habis) dan "Terpilih otomatis" (pada grup pilih satu hanya satu yang dapat otomatis), tombol UBAH dan HAPUS;
+kotak centang langsung berubah saat diketuk dan kembali jika server menolak;
+tambah pilihan: Nama pilihan dan Tambahan harga (kosong atau 0 = gratis; hanya angka);
+HAPUS GRUP INI meminta konfirmasi dan menyebut berapa menu yang memakainya; transaksi lama tidak berubah.
+
+Memasang pada menu: Menu → Tambah/Edit menampilkan bagian "Pilihan menu" berisi kotak centang setiap grup; urutan centang menjadi urutan di kasir ("Urutan 1 · Wajib · 3 pilihan"). Baris menu menampilkan "N pilihan".
 
 A.18 Employee Management
 

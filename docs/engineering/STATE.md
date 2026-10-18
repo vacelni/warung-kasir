@@ -69,6 +69,13 @@ Every PRD §43 Must Have and AC-01..AC-15 is implemented and has tests (coverage
 - Portfolio: a separate public copy with its own demo Supabase/Cloudflare on the developer's accounts,
   never the production data (after the warung handover).
 
+## Post-launch features
+
+| Feature | Status |
+|---|---|
+| Product options: simple menu tiles, then choices (nasi, level, bagian ayam, tambahan, catatan) (user request, 2026-10-18) | Implemented locally, **not committed, not deployed**. Migration `20261018000100_product_options.sql` (additive; **needs approval to `db push`, and must go BEFORE the new app**, RUNBOOK §7.8). Spec: PRD §22a, DATABASE D.12, UI_SPEC A.9a/A.17a, TECHNICAL_SPEC C.17, TEST_PLAN G.21. Rehearsed on existing data: menu, categories, profiles, stores, transaction items byte-identical after the migration. pgTAP 407, unit tests, lint, typecheck, build, E2E (360x800 read-only suite, options mutation + offline specs) pass. The production owner still has to create the groups and attach them to Geprek, Bakar, Bebek, etc. |
+| Bluetooth receipt printing (user request, 2026-10-18) | Implemented locally, **not committed, not deployed**. Spec: PRD §44a, UI_SPEC A.14/A.15/A.7, TECHNICAL_SPEC C.16, TEST_PLAN G.20. Code: `features/printer/`. No database change, no new package; production data untouched. Unit/component tests, lint, typecheck and `npm run build` pass. **Not yet verified:** Playwright layout specs (local Docker stack was not running) and a real printer on an Android phone (TEST_PLAN G.20 manual list). Deploy needs approval |
+
 ## Known defects / debt
 
 See `SECURITY_TRACKER.md` for security items. Other debt is listed in `ROADMAP.md` (Phase 13-prep).

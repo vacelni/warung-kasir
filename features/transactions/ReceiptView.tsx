@@ -1,4 +1,5 @@
 import { formatRupiah } from '@/lib/money';
+import { summarizeOptions } from '@/lib/options';
 import { formatJakartaDate, formatJakartaTime } from '@/lib/time';
 import type { StoreProfile } from '@/features/settings/validation';
 import type { TransactionDetail } from './model';
@@ -30,6 +31,10 @@ export function ReceiptView({ detail, store }: { detail: TransactionDetail; stor
           <li key={`${line.productName}-${index}`} className="flex items-start justify-between gap-3">
             <span className="min-w-0">
               <span className="block text-base break-words">{line.productName}</span>
+              {line.options.length > 0 && (
+                <span className="block text-body break-words">{summarizeOptions(line.options)}</span>
+              )}
+              {line.note && <span className="block text-body break-words text-muted">Catatan: {line.note}</span>}
               <span className="block text-body text-muted">
                 {line.quantity} × {formatRupiah(line.unitPrice)}
               </span>

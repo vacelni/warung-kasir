@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { getDb } from '@/lib/idb';
 import { resetIndexedDb } from '@/lib/test-support/fakeIndexedDb';
 import { testSnapshot } from '@/lib/test-support/transactions';
 import { clearCatalog, readCatalog, saveCatalog } from './catalogCache';
@@ -8,8 +9,8 @@ beforeEach(resetIndexedDb);
 
 const CATALOG = {
   products: [
-    { id: 'nasi', name: 'Nasi Goreng', price: 15000, categoryId: 'makanan' },
-    { id: 'teh', name: 'Es Teh', price: 5000, categoryId: 'minuman' },
+    { id: 'nasi', name: 'Nasi Goreng', price: 15000, categoryId: 'makanan', optionGroups: [] },
+    { id: 'teh', name: 'Es Teh', price: 5000, categoryId: 'minuman', optionGroups: [] },
   ],
   categories: [
     { id: 'makanan', name: 'Makanan' },
@@ -38,7 +39,47 @@ describe('catalog cache (TECHNICAL_SPEC C.10)', () => {
       name: 'Nasi Goreng',
       price: 15000,
       categoryId: 'makanan',
+      optionGroups: [],
     });
+  });
+
+  it('keeps the option groups of a product so a Geprek can be ordered offline', async () => {
+    const geprek = {
+      id: 'geprek',
+      name: 'Geprek',
+      price: 12000,
+      categoryId: 'makanan',
+      optionGroups: [
+        {
+          id: 'g-level',
+          name: 'Level',
+          allowMultiple: false,
+          required: true,
+          choices: [
+            { id: 'l1', name: 'Level 1', priceDelta: 0, isDefault: true },
+            { id: 'l5', name: 'Level 5', priceDelta: 0, isDefault: false },
+          ],
+        },
+      ],
+    };
+    await saveCatalog('cashier-1', 'store-a', { ...CATALOG, products: [geprek] }, SAVED_AT);
+
+    expect((await readCatalog('cashier-1', 'store-a'))?.products).toEqual([geprek]);
+  });
+
+  it('reads a menu saved before product options existed as products without option groups', async () => {
+    const db = await getDb();
+    await db.put('catalog', {
+      user_id: 'cashier-1',
+      store_id: 'store-a',
+      products: [{ id: 'nasi', name: 'Nasi Goreng', price: 15000, categoryId: 'makanan' }],
+      categories: [],
+      saved_at: SAVED_AT.toISOString(),
+    });
+
+    expect((await readCatalog('cashier-1', 'store-a'))?.products).toEqual([
+      { id: 'nasi', name: 'Nasi Goreng', price: 15000, categoryId: 'makanan', optionGroups: [] },
+    ]);
   });
 
   it('never serves one user’s menu to another user, or another store', async () => {

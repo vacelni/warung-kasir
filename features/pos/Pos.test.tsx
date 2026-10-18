@@ -25,9 +25,9 @@ const CATALOG: Catalog = {
     { id: 'kosong', name: 'Paket' },
   ],
   products: [
-    { id: 'nasi', name: 'Nasi Goreng', price: 15000, categoryId: 'makanan' },
-    { id: 'mie', name: 'Mie Goreng', price: 12000, categoryId: 'makanan' },
-    { id: 'teh', name: 'Es Teh', price: 5000, categoryId: 'minuman' },
+    { id: 'nasi', name: 'Nasi Goreng', price: 15000, categoryId: 'makanan', optionGroups: [] },
+    { id: 'mie', name: 'Mie Goreng', price: 12000, categoryId: 'makanan', optionGroups: [] },
+    { id: 'teh', name: 'Es Teh', price: 5000, categoryId: 'minuman', optionGroups: [] },
   ],
   store: null,
 };

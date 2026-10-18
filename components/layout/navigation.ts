@@ -15,13 +15,14 @@ const KASIR: NavItem = { href: '/kasir', label: 'Kasir', icon: 'cart' };
 const RIWAYAT: NavItem = { href: '/riwayat', label: 'Riwayat', icon: 'history' };
 const LAPORAN: NavItem = { href: '/laporan', label: 'Laporan', icon: 'chart' };
 const MENU: NavItem = { href: '/menu', label: 'Menu', icon: 'menu' };
+const PILIHAN: NavItem = { href: '/pilihan', label: 'Pilihan Menu', icon: 'options' };
 const KATEGORI: NavItem = { href: '/kategori', label: 'Kategori', icon: 'tag' };
 const KARYAWAN: NavItem = { href: '/karyawan', label: 'Karyawan', icon: 'users' };
 const BACKUP: NavItem = { href: '/backup', label: 'Backup / Export', icon: 'download' };
 const PENGATURAN: NavItem = { href: '/pengaturan', label: 'Pengaturan', icon: 'settings' };
 const TENTANG: NavItem = { href: '/tentang', label: 'Tentang', icon: 'info' };
 
-const OWNER_MANAGEMENT: readonly NavItem[] = [MENU, KATEGORI, KARYAWAN, BACKUP, PENGATURAN];
+const OWNER_MANAGEMENT: readonly NavItem[] = [MENU, PILIHAN, KATEGORI, KARYAWAN, BACKUP, PENGATURAN];
 
 const LAINNYA: NavItem = {
   href: '/lainnya',

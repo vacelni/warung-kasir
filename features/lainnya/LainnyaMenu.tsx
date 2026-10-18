@@ -7,6 +7,7 @@ import { ABOUT_ITEM, lainnyaManagementItems } from '@/components/layout/navigati
 import { LogoutButton } from '@/features/auth/LogoutButton';
 import { useProfile } from '@/features/auth/AuthProvider';
 import { SyncStatusPanel } from '@/features/offline/SyncStatus';
+import { PrinterPanel } from '@/features/printer/PrinterPanel';
 import { ROLE_LABELS } from '@/lib/permissions';
 
 /** Contents of the Lainnya page per role (UI_SPEC A.7). */
@@ -36,6 +37,7 @@ export function LainnyaMenu() {
           <LinkRow key={item.href} href={item.href} label={item.label} icon={item.icon} />
         ))}
         <SyncStatusPanel />
+        <PrinterPanel />
         <LinkRow href={ABOUT_ITEM.href} label={ABOUT_ITEM.label} icon={ABOUT_ITEM.icon} />
       </Card>
 

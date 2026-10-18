@@ -152,13 +152,49 @@ describe('buildTransaction', () => {
       cashier_id: 'cashier-1',
       created_at: '2026-10-07T03:32:00.000Z',
       items: [
-        { product_id: NASI.id, product_name: 'Nasi Goreng', unit_price: 15000, quantity: 2, subtotal: 30000 },
-        { product_id: TEH.id, product_name: 'Es Teh', unit_price: 5000, quantity: 2, subtotal: 10000 },
+        { product_id: NASI.id, product_name: 'Nasi Goreng', unit_price: 15000, quantity: 2, subtotal: 30000, options: [], note: null },
+        { product_id: TEH.id, product_name: 'Es Teh', unit_price: 5000, quantity: 2, subtotal: 10000, options: [], note: null },
       ],
       total: 40000,
       paid_amount: 50000,
       change_amount: 10000,
     });
+  });
+
+  it('freezes the chosen options and note on the sold line, with the option prices inside unit_price', () => {
+    const geprek = addProduct(
+      EMPTY_CART,
+      {
+        id: 'p-geprek',
+        name: 'Geprek',
+        price: 12000,
+        options: [
+          { groupId: 'g1', groupName: 'Level', choiceId: 'c1', name: 'Level 3', priceDelta: 0 },
+          { groupId: 'g2', groupName: 'Nasi', choiceId: 'c2', name: 'Pakai nasi', priceDelta: 4000 },
+          { groupId: 'g3', groupName: 'Bagian ayam', choiceId: 'c3', name: 'Dada', priceDelta: 3000 },
+        ],
+        note: 'sambal dipisah',
+      },
+      2,
+    );
+    const snapshot = buildTransaction({ ...base, cart: geprek, paid: 40000 });
+    expect(snapshot.items).toEqual([
+      {
+        product_id: 'p-geprek',
+        product_name: 'Geprek',
+        unit_price: 19000,
+        quantity: 2,
+        subtotal: 38000,
+        options: [
+          { group: 'Level', name: 'Level 3', price: 0 },
+          { group: 'Nasi', name: 'Pakai nasi', price: 4000 },
+          { group: 'Bagian ayam', name: 'Dada', price: 3000 },
+        ],
+        note: 'sambal dipisah',
+      },
+    ]);
+    expect(snapshot.total).toBe(38000);
+    expect(snapshot.change_amount).toBe(2000);
   });
 
   it('keeps the cart price snapshot, not any newer catalog price', () => {
@@ -195,7 +231,7 @@ describe('buildTransaction', () => {
 
 describe('buildTransaction limits (SEC-07)', () => {
   it('refuses a cart with more than 200 different products', () => {
-    const lines = Array.from({ length: 201 }, (_, n) => ({ productId: `p-${n}`, name: `Menu ${n}`, unitPrice: 1000, quantity: 1 }));
+    const lines = Array.from({ length: 201 }, (_, n) => ({ lineId: `p-${n}`, productId: `p-${n}`, name: `Menu ${n}`, unitPrice: 1000, quantity: 1, options: [], note: null }));
     expect(() =>
       buildTransaction({ id: ID, createdAt: SALE_TIME, cashierId: 'cashier-1', storeId: 'store-1', cart: lines, paid: 1_000_000 }),
     ).toThrow(/at most 200/);

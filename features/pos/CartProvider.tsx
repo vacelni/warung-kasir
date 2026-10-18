@@ -8,10 +8,11 @@ type CartContextValue = {
   cart: Cart;
   total: Money;
   itemCount: number;
-  add: (product: CartProduct) => void;
-  increase: (productId: string) => void;
-  decrease: (productId: string) => void;
-  remove: (productId: string) => void;
+  /** Adds `quantity` units (default 1) of a product with the options already chosen. */
+  add: (product: CartProduct, quantity?: number) => void;
+  increase: (lineId: string) => void;
+  decrease: (lineId: string) => void;
+  remove: (lineId: string) => void;
   clear: () => void;
 };
 
@@ -26,10 +27,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       cart,
       total: cartTotal(cart),
       itemCount: cartItemCount(cart),
-      add: (product) => dispatch({ type: 'add', product }),
-      increase: (productId) => dispatch({ type: 'increase', productId }),
-      decrease: (productId) => dispatch({ type: 'decrease', productId }),
-      remove: (productId) => dispatch({ type: 'remove', productId }),
+      add: (product, quantity) => dispatch({ type: 'add', product, quantity }),
+      increase: (lineId) => dispatch({ type: 'increase', lineId }),
+      decrease: (lineId) => dispatch({ type: 'decrease', lineId }),
+      remove: (lineId) => dispatch({ type: 'remove', lineId }),
       clear: () => dispatch({ type: 'clear' }),
     }),
     [cart],

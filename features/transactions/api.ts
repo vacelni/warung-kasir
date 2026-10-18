@@ -1,3 +1,4 @@
+import type { OptionSnapshot } from '@/lib/checkout';
 import { getSupabase } from '@/lib/supabase';
 import type { DateRange, HistoryOrder } from './filters';
 import {
@@ -37,7 +38,7 @@ const LIST_COLUMNS =
   'id, code, cashier_id, total, paid_amount, change_amount, status, created_at, synced_at, cashier:profiles!transactions_cashier_id_fkey(name), transaction_items(quantity)';
 
 const DETAIL_COLUMNS =
-  'id, code, cashier_id, total, paid_amount, change_amount, status, created_at, synced_at, cashier:profiles!transactions_cashier_id_fkey(name), transaction_items(product_name, unit_price, quantity, subtotal)';
+  'id, code, cashier_id, total, paid_amount, change_amount, status, created_at, synced_at, cashier:profiles!transactions_cashier_id_fkey(name), transaction_items(product_name, unit_price, quantity, subtotal, options, note)';
 
 type BaseRow = {
   id: string;
@@ -106,6 +107,24 @@ export async function listTransactions(query: HistoryQuery): Promise<HistoryPage
 }
 
 /**
+ * The options column is JSON written by create_transaction (validated there). Anything that does
+ * not have the expected shape is skipped rather than shown wrongly, so one bad row cannot break
+ * the whole detail page.
+ */
+export function parseOptionSnapshots(value: unknown): OptionSnapshot[] {
+  if (!Array.isArray(value)) return [];
+  const options: OptionSnapshot[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const { group, name, price } = entry as Record<string, unknown>;
+    if (typeof group === 'string' && typeof name === 'string' && typeof price === 'number') {
+      options.push({ group, name, price });
+    }
+  }
+  return options;
+}
+
+/**
  * One transaction with its item snapshot, or null when the database has no such row visible to the
  * caller (it does not exist, belongs to another store, or is another cashier's).
  */
@@ -126,6 +145,8 @@ export async function getTransaction(id: string): Promise<TransactionDetail | nu
       unitPrice: item.unit_price,
       quantity: item.quantity,
       subtotal: item.subtotal,
+      options: parseOptionSnapshots(item.options),
+      note: item.note,
     })),
   );
   return { ...toEntry(data, countUnits(lines)), lines };

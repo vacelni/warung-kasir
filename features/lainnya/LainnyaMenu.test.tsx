@@ -31,7 +31,7 @@ describe('LainnyaMenu (UI_SPEC A.7)', () => {
     mocks.profile = owner;
     render(<LainnyaMenu />);
 
-    expect(linkLabels()).toEqual(['Menu', 'Kategori', 'Karyawan', 'Backup / Export', 'Pengaturan', 'Tentang']);
+    expect(linkLabels()).toEqual(['Menu', 'Pilihan Menu', 'Kategori', 'Karyawan', 'Backup / Export', 'Pengaturan', 'Tentang']);
     expect(screen.getByText('Status sinkronisasi')).toBeTruthy();
     expect(screen.getByText('Owner')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Keluar' })).toBeTruthy();

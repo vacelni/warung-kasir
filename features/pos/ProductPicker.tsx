@@ -9,11 +9,12 @@ import { useToast } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { useProfile } from '@/features/auth/AuthProvider';
-import { canAddProduct, MAX_CART_LINES } from '@/lib/cart';
+import { canAddLine, lineIdFor, MAX_CART_LINES } from '@/lib/cart';
 import { CartBar } from './CartBar';
 import { useCart } from './CartProvider';
 import { useCatalog } from './CatalogProvider';
 import { CategoryTabs } from './CategoryTabs';
+import { OptionSheet, type OptionChoiceResult } from './OptionSheet';
 import { categoriesWithProducts, filterProducts, type CatalogProduct } from './filter';
 import { PRODUCT_GRID_CLASSES, ProductGrid } from './ProductGrid';
 import { SearchBar } from '@/components/ui/SearchBar';
@@ -27,6 +28,8 @@ export function ProductPicker() {
   const toast = useToast();
   const [query, setQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  // The product whose choices are open in the sheet.
+  const [choosing, setChoosing] = useState<CatalogProduct | null>(null);
 
   const catalog = state.status === 'ready' ? state : null;
   const tabs = useMemo(
@@ -45,12 +48,26 @@ export function ProductPicker() {
     setSelectedCategoryId(null);
   }
 
-  function addToCart(product: CatalogProduct) {
-    if (!canAddProduct(cart, product.id)) {
-      toast.show(`Satu transaksi paling banyak ${MAX_CART_LINES} jenis menu.`, 'danger');
+  /** A product without options joins the order at once; one with options opens the choice sheet first. */
+  function pick(product: CatalogProduct) {
+    if (product.optionGroups.length > 0) {
+      setChoosing(product);
+      return;
+    }
+    if (!canAddLine(cart, lineIdFor(product.id))) {
+      toast.show(`Satu transaksi paling banyak ${MAX_CART_LINES} baris pesanan.`, 'danger');
       return;
     }
     add({ id: product.id, name: product.name, price: product.price });
+  }
+
+  function addChosen(product: CatalogProduct, { options, note, quantity }: OptionChoiceResult) {
+    if (!canAddLine(cart, lineIdFor(product.id, options, note))) {
+      toast.show(`Satu transaksi paling banyak ${MAX_CART_LINES} baris pesanan.`, 'danger');
+      return;
+    }
+    add({ id: product.id, name: product.name, price: product.price, options, note }, quantity);
+    setChoosing(null);
   }
 
   return (
@@ -125,10 +142,12 @@ export function ProductPicker() {
               }
             />
           ) : (
-            <ProductGrid products={visible} cart={cart} onAdd={addToCart} />
+            <ProductGrid products={visible} cart={cart} onAdd={pick} />
           )}
         </div>
       )}
+
+      <OptionSheet product={choosing} onClose={() => setChoosing(null)} onConfirm={addChosen} />
 
       {itemCount > 0 && (
         <>

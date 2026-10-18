@@ -10,6 +10,8 @@ import { SuccessState } from '@/components/shared/SuccessState';
 import { Badge } from '@/components/ui/Badge';
 import { Button, buttonClasses } from '@/components/ui/Button';
 import { useProfile } from '@/features/auth/AuthProvider';
+import { PrintReceiptButton } from '@/features/printer/PrintReceiptButton';
+import { detailFromOutbox } from '@/features/transactions/model';
 import { getOutboxEntry, retryFailed, type OutboxEntry } from '@/features/offline/outbox';
 import { failureReason } from '@/features/offline/sync';
 import { syncManager, type SyncTrigger } from '@/features/offline/syncManager';
@@ -172,6 +174,7 @@ export function CheckoutSuccess() {
         <Link href={`/riwayat/detail?id=${entry.id}`} className={buttonClasses('secondary', 'w-full')}>
           LIHAT DETAIL
         </Link>
+        <PrintReceiptButton detail={detailFromOutbox(entry, profile.name)} className="w-full" />
         {newTransactionButton}
         {!syncing && (entry.sync_status === 'pending' || entry.sync_status === 'failed') && (
           <Button variant="secondary" className="w-full" onClick={retrySync}>

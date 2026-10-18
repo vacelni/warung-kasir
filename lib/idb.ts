@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { TransactionSnapshot } from './checkout';
+import type { CatalogOptionGroup } from './options';
 
 /** Client-only sync state (decision D3). Never stored as the server transaction status. */
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
@@ -32,7 +33,8 @@ export type CatalogSnapshot = {
   /** The user who loaded it; another user never reads it. */
   user_id: string;
   store_id: string;
-  products: Array<{ id: string; name: string; price: number; categoryId: string }>;
+  /** `optionGroups` is absent in snapshots saved before product options existed (DATABASE D.12). */
+  products: Array<{ id: string; name: string; price: number; categoryId: string; optionGroups?: CatalogOptionGroup[] }>;
   categories: Array<{ id: string; name: string }>;
   /**
    * The store's name, address, phone and receipt note, for the receipt view offline (TECHNICAL_SPEC

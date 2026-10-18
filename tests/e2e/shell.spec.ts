@@ -42,8 +42,8 @@ test('owner shell: four tabs, Lainnya contents, no overflow, 48px targets', asyn
 
   await bottomNav.getByRole('link', { name: 'Lainnya' }).click();
   await expect(page.getByRole('heading', { name: 'Lainnya', level: 1 })).toBeVisible();
-  for (const label of ['Menu', 'Kategori', 'Karyawan', 'Backup / Export', 'Pengaturan', 'Tentang']) {
-    const row = page.getByRole('main').getByRole('link', { name: label });
+  for (const label of ['Menu', 'Pilihan Menu', 'Kategori', 'Karyawan', 'Backup / Export', 'Pengaturan', 'Tentang']) {
+    const row = page.getByRole('main').getByRole('link', { name: label, exact: true });
     await expect(row).toBeVisible();
     await expectTouchTarget(row);
   }
@@ -52,7 +52,7 @@ test('owner shell: four tabs, Lainnya contents, no overflow, 48px targets', asyn
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 
   // Menu is reached through Lainnya, so that tab stays highlighted.
-  await page.getByRole('main').getByRole('link', { name: 'Menu' }).click();
+  await page.getByRole('main').getByRole('link', { name: 'Menu', exact: true }).click();
   await expect(page).toHaveURL(/\/menu$/);
   await expect(bottomNav.getByRole('link', { name: 'Lainnya' })).toHaveAttribute('aria-current', 'page');
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
@@ -93,6 +93,7 @@ test.describe('desktop layout', () => {
       'Riwayat',
       'Laporan',
       'Menu',
+      'Pilihan Menu',
       'Kategori',
       'Karyawan',
       'Backup / Export',

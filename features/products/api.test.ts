@@ -25,15 +25,20 @@ afterEach(() => {
 
 describe('createProduct', () => {
   it('inserts an active product for the given store with an integer price', async () => {
-    const queries = useDatabase(() => ok(null));
+    const queries = useDatabase(() => ok({ id: 'p-new' }));
 
     const result = await createProduct('store-1', INPUT);
 
-    expect(result).toEqual({ ok: true });
+    // The new id comes back so its option groups can be attached.
+    expect(result).toEqual({ ok: true, id: 'p-new' });
     expect(queries).toEqual([
       {
         table: 'products',
-        steps: [['insert', { store_id: 'store-1', category_id: 'cat-1', name: 'Nasi Goreng', price: 15000, is_active: true }]],
+        steps: [
+          ['insert', { store_id: 'store-1', category_id: 'cat-1', name: 'Nasi Goreng', price: 15000, is_active: true }],
+          ['select', 'id'],
+          ['single'],
+        ],
       },
     ]);
   });

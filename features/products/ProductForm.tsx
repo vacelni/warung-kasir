@@ -3,9 +3,12 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Dialog } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import type { Category } from '@/features/categories/api';
+import { setProductGroups } from '@/features/options/api';
+import type { OptionGroup } from '@/features/options/model';
 import { cx } from '@/lib/cx';
 import { formatRupiah } from '@/lib/money';
 import { createProduct, updateProduct, type Product } from './api';
@@ -16,6 +19,9 @@ type ProductFormProps = {
   /** The product being edited; undefined creates a new one. */
   product?: Product;
   categories: readonly Category[];
+  /** Every option group the owner has made, and the ids this product already shows (in order). */
+  groups: readonly OptionGroup[];
+  initialGroupIds: readonly string[];
   storeId: string;
   onClose: () => void;
   onSaved: (message: string) => void;
@@ -23,16 +29,22 @@ type ProductFormProps = {
 
 const FORM_ID = 'product-form';
 
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
 /**
  * Create or edit a product in a bottom sheet. Mount it with a fresh `key` each time it opens
  * so the fields start from the product (or empty).
  */
-export function ProductForm({ open, product, categories, storeId, onClose, onSaved }: ProductFormProps) {
+export function ProductForm({ open, product, categories, groups, initialGroupIds, storeId, onClose, onSaved }: ProductFormProps) {
   const [values, setValues] = useState<ProductFormValues>({
     name: product?.name ?? '',
     categoryId: product?.categoryId ?? '',
     price: product ? String(product.price) : '',
   });
+  // Ids of the option groups this product shows, in the order the cashier sees them (order of ticking).
+  const [groupIds, setGroupIds] = useState<string[]>([...initialGroupIds]);
   const [errors, setErrors] = useState<ProductFormErrors>({});
   const [failure, setFailure] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
@@ -55,14 +67,30 @@ export function ProductForm({ open, product, categories, storeId, onClose, onSav
     setErrors({});
     setFailure(undefined);
     setSubmitting(true);
-    const result = product ? await updateProduct(product.id, checked.input) : await createProduct(storeId, checked.input);
-    setSubmitting(false);
+    const saved = product
+      ? await updateProduct(product.id, checked.input).then((result) => (result.ok ? { ok: true as const, id: product.id } : result))
+      : await createProduct(storeId, checked.input);
 
-    if (!result.ok) {
-      setFailure(result.message);
+    if (!saved.ok) {
+      setSubmitting(false);
+      setFailure(saved.message);
+      return;
+    }
+
+    // The menu item itself is saved. A failure attaching the groups keeps the sheet open so the
+    // owner sees it and can press SIMPAN again (a new item is then updated, not created twice).
+    const unchanged = product !== undefined && sameIds(groupIds, initialGroupIds);
+    const attached = unchanged ? { ok: true as const } : await setProductGroups(storeId, saved.id, groupIds);
+    setSubmitting(false);
+    if (!attached.ok) {
+      setFailure(`Menu tersimpan, tetapi pilihan menu gagal disimpan. ${attached.message}`);
       return;
     }
     onSaved(product ? 'Menu diperbarui.' : 'Menu ditambahkan.');
+  }
+
+  function toggleGroup(id: string) {
+    setGroupIds((current) => (current.includes(id) ? current.filter((existing) => existing !== id) : [...current, id]));
   }
 
   const price = parsePrice(values.price);
@@ -110,6 +138,32 @@ export function ProductForm({ open, product, categories, storeId, onClose, onSav
           inputMode="numeric"
           autoComplete="off"
         />
+        <fieldset className="flex flex-col">
+          <legend className="mb-1 text-body font-medium text-foreground">Pilihan menu</legend>
+          {groups.length === 0 ? (
+            <p className="text-body text-muted">
+              Belum ada pilihan. Buat grup seperti Level atau Bagian ayam di Lainnya, lalu Pilihan Menu, agar kasir bisa memilihnya.
+            </p>
+          ) : (
+            <>
+              <p className="mb-1 text-caption text-muted">
+                Centang yang ditanyakan kasir sebelum menu masuk ke pesanan, sesuai urutan centang.
+              </p>
+              {groups.map((group) => {
+                const position = groupIds.indexOf(group.id);
+                return (
+                  <Checkbox
+                    key={group.id}
+                    label={group.name}
+                    hint={`${position >= 0 ? `Urutan ${position + 1} · ` : ''}${group.required ? 'Wajib' : 'Opsional'} · ${group.choices.length} pilihan`}
+                    checked={position >= 0}
+                    onChange={() => toggleGroup(group.id)}
+                  />
+                );
+              })}
+            </>
+          )}
+        </fieldset>
       </form>
     </Dialog>
   );

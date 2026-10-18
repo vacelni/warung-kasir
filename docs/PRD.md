@@ -732,6 +732,24 @@ Gambar produk ditunda (post-MVP, lihat §45). Definisi kolom otoritatif: `docs/D
 
 ---
 
+# 22a. Pilihan Menu (ditambahkan setelah peluncuran, 2026-10-18)
+
+Atas permintaan pemilik warung (ayam dan bebek crispy, geprek, bakar): layar kasir menampilkan menu utama yang sederhana (Geprek, Bakar, Nyemek, Geprek Bakar, Bebek, dst.). Saat Cashier atau Owner mengetuk menu yang memiliki pilihan, muncul pilihan yang tinggal diketuk, lalu menu masuk ke pesanan dengan total harganya.
+
+* Owner membuat **grup pilihan** yang dapat dipakai ulang (mis. Nasi, Level, Bagian ayam, Tambahan), masing-masing dengan **pilihan** dan **tambahan harga** per pilihan (boleh Rp0);
+* jenis grup: pilih satu atau boleh banyak; wajib dipilih atau opsional; satu pilihan dapat ditandai terpilih otomatis;
+* Owner memasang grup pada menu (Menu → Edit) dan mengatur urutannya;
+* pilihan yang sedang habis dapat ditandai tidak tersedia sehingga hilang dari kasir;
+* kasir dapat menambahkan catatan bebas (mis. "sambal dipisah") dan jumlah sebelum menambahkan;
+* harga satuan = harga menu + tambahan harga semua pilihan; pilihan yang sama digabung, pilihan berbeda menjadi baris terpisah;
+* pilihan dan catatan tampil di pesanan, struk (layar dan cetak), riwayat, dan export, sesuai saat penjualan; mengubah atau menghapus pilihan tidak mengubah transaksi lama;
+* berfungsi offline; menu tanpa pilihan (mis. Es Teh) tetap langsung masuk ke pesanan;
+* data yang sudah ada (menu, kategori, profil, store, transaksi) tidak diubah.
+
+Detail: UI_SPEC A.9a dan A.17a, DATABASE D.12, TECHNICAL_SPEC C.17.
+
+---
+
 # 23. Product Status
 
 Menu dapat:
@@ -864,8 +882,9 @@ Data yang di-export:
 * data store;
 * categories;
 * products;
+* grup dan pilihan menu, serta grup yang dipasang pada setiap menu;
 * transactions;
-* transaction_items;
+* transaction_items (termasuk pilihan dan catatan setiap item);
 * profil karyawan (opsional) — hanya jika tidak memuat credential atau secret apa pun.
 
 Ketentuan:
@@ -1168,8 +1187,9 @@ Tidak menggunakan pada MVP:
 * WhatsApp API berbayar;
 * payment gateway;
 * paid storage;
-* paid analytics;
-* printer khusus.
+* paid analytics.
+
+Catatan: cetak struk ke printer Bluetooth portable ditambahkan setelah peluncuran (§44a); printer dibeli sendiri oleh warung dan bukan layanan berbayar.
 
 ---
 
@@ -1348,13 +1368,25 @@ Fitur penting tetapi dapat menyusul setelah core POS berjalan:
 
 ---
 
+# 44a. Cetak Struk Bluetooth (ditambahkan setelah peluncuran, 2026-10-18)
+
+Atas permintaan pemilik warung, struk dapat dicetak ke printer thermal portable melalui Bluetooth.
+
+* Owner dan Cashier dapat mencetak dan mencetak ulang struk transaksi yang dapat mereka lihat;
+* cetak adalah tombol manual [ CETAK STRUK ] di layar sukses dan detail transaksi, tidak otomatis;
+* printer dipasang di HP kasir (Lainnya → Printer struk), lebar kertas 58 mm atau 80 mm;
+* hanya printer Bluetooth LE (Web Bluetooth, Chrome); printer Bluetooth Classic tidak didukung;
+* kegagalan printer tidak memengaruhi transaksi, penyimpanan lokal, atau sinkronisasi;
+* tanpa perubahan database. Detail: UI_SPEC A.15, TECHNICAL_SPEC C.16.
+
+---
+
 # 45. Post-MVP / Future Features
 
 Tidak menjadi bagian MVP:
 
 ```text
 - QRIS/payment gateway
-- Bluetooth printer
 - Inventory/stok
 - Ingredient management
 - Purchase management

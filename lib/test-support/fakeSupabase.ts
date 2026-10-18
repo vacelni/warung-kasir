@@ -17,7 +17,7 @@ export function fakeSupabase(result: (query: RecordedQuery) => FakeResult) {
   function chain(query: RecordedQuery) {
     queries.push(query);
     const builder: Record<string, unknown> = {};
-    for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'order', 'gte', 'lt', 'ilike', 'or', 'limit', 'range', 'retry', 'single', 'maybeSingle', 'abortSignal']) {
+    for (const method of ['select', 'insert', 'update', 'delete', 'eq', 'in', 'order', 'gte', 'lt', 'ilike', 'or', 'limit', 'range', 'retry', 'single', 'maybeSingle', 'abortSignal']) {
       builder[method] = (...args: unknown[]) => {
         query.steps.push([method, ...args]);
         return builder;

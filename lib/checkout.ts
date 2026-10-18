@@ -65,13 +65,26 @@ export function transactionCode(id: string, createdAt: Date): string {
   return `TRX-${jakartaDateKey(createdAt)}-${id.slice(0, 6).toUpperCase()}`;
 }
 
-/** One sold line, frozen at the moment of sale. Field names match transaction_items (DATABASE D.7). */
+/** One option chosen for a sold line, frozen at the moment of sale (DATABASE D.12). `price` is what it added. */
+export type OptionSnapshot = {
+  readonly group: string;
+  readonly name: string;
+  readonly price: Money;
+};
+
+/**
+ * One sold line, frozen at the moment of sale. Field names match transaction_items (DATABASE D.7,
+ * D.12). `unit_price` already includes the price of every option. `options` and `note` are absent
+ * on sales saved on the device before options existed; read them as "no options, no note".
+ */
 export type TransactionItemSnapshot = {
   readonly product_id: string;
   readonly product_name: string;
   readonly unit_price: Money;
   readonly quantity: number;
   readonly subtotal: Money;
+  readonly options?: readonly OptionSnapshot[];
+  readonly note?: string | null;
 };
 
 /** The complete sale as stored in the outbox and sent to create_transaction (TECHNICAL_SPEC C.12). */
@@ -112,6 +125,8 @@ export function buildTransaction({ id, createdAt, cart, paid, cashierId, storeId
     unit_price: item.unitPrice,
     quantity: item.quantity,
     subtotal: itemSubtotal(item),
+    options: item.options.map((option) => ({ group: option.groupName, name: option.name, price: option.priceDelta })),
+    note: item.note,
   }));
   const total = cartTotal(cart);
   for (const amount of [total, paid, ...items.map((item) => item.subtotal)]) {

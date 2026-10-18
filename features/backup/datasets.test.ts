@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { toCsv } from '@/lib/csv';
 import { fakeSupabase, type FakeResult, type RecordedQuery } from '@/lib/test-support/fakeSupabase';
-import { DATASETS, exportFileName, readAllRows, type DatasetKey } from './datasets';
+import { DATASETS, describeOptions, exportFileName, readAllRows, type DatasetKey } from './datasets';
 
 const mocks = vi.hoisted(() => ({ supabase: null as unknown }));
 vi.mock('@/lib/supabase', () => ({ getSupabase: () => mocks.supabase }));
@@ -57,19 +57,29 @@ describe('readAllRows', () => {
 });
 
 describe('datasets', () => {
-  it('exports exactly the six tables of PRD §27', () => {
-    expect(DATASETS.map((d) => d.key).sort()).toEqual(['categories', 'products', 'profiles', 'store', 'transaction_items', 'transactions']);
+  it('exports the six tables of PRD §27 and the menu options', () => {
+    expect(DATASETS.map((d) => d.key).sort()).toEqual([
+      'categories',
+      'option_choices',
+      'product_options',
+      'products',
+      'profiles',
+      'store',
+      'transaction_items',
+      'transactions',
+    ]);
   });
 
   it('scopes every query to the signed-in store and orders on a unique key', async () => {
     const queries = useDatabase(() => ({ data: [], error: null }));
     for (const d of DATASETS) await d.load(STORE);
-    expect(queries).toHaveLength(6);
+    expect(queries).toHaveLength(8);
     for (const query of queries) {
       const filter = query.table === 'stores' ? ['eq', 'id', STORE] : ['eq', 'store_id', STORE];
       expect(query.steps).toContainEqual(filter);
       const orders = query.steps.filter(([step]) => step === 'order').map(([, column]) => column);
-      expect(orders.at(-1)).toBe('id');
+      // product_option_groups has no id column; its primary key is (product_id, group_id).
+      expect(orders.at(-1)).toBe(query.table === 'product_option_groups' ? 'group_id' : 'id');
     }
   });
 
@@ -166,6 +176,82 @@ describe('datasets', () => {
     );
     const table = await dataset('products').load(STORE);
     expect(table.rows[0]?.slice(0, 7)).toEqual(['p1', STORE, 'k1', 'Makanan', 'Nasi Rames', 13000, false]);
+  });
+
+  it('writes the options and note of each sold line as readable text', async () => {
+    useDatabase(
+      onePage([
+        {
+          id: 'i1',
+          transaction_id: 't1',
+          store_id: STORE,
+          product_id: 'p1',
+          product_name: 'Geprek',
+          unit_price: 19000,
+          quantity: 2,
+          subtotal: 38000,
+          options: [
+            { group: 'Level', name: 'Level 3', price: 0 },
+            { group: 'Nasi', name: 'Pakai nasi', price: 4000 },
+          ],
+          note: 'sambal dipisah',
+        },
+        {
+          id: 'i2',
+          transaction_id: 't1',
+          store_id: STORE,
+          product_id: 'p2',
+          product_name: 'Es Teh',
+          unit_price: 5000,
+          quantity: 1,
+          subtotal: 5000,
+          options: [],
+          note: null,
+        },
+      ]),
+    );
+    const table = await dataset('transaction_items').load(STORE);
+    expect(table.columns).toEqual([
+      'id', 'transaction_id', 'store_id', 'product_id', 'product_name', 'options', 'note', 'unit_price', 'quantity', 'subtotal',
+    ]);
+    expect(table.rows).toEqual([
+      ['i1', 't1', STORE, 'p1', 'Geprek', 'Level: Level 3; Nasi: Pakai nasi (+4000)', 'sambal dipisah', 19000, 2, 38000],
+      ['i2', 't1', STORE, 'p2', 'Es Teh', '', null, 5000, 1, 5000],
+    ]);
+  });
+
+  it('exports the option choices with their group, and which groups each menu shows', async () => {
+    useDatabase(
+      onePage([
+        {
+          id: 'c1',
+          store_id: STORE,
+          group_id: 'g1',
+          name: 'Pakai nasi',
+          price_delta: 4000,
+          is_default: false,
+          is_active: true,
+          position: 0,
+          created_at: '2026-10-18T00:00:00Z',
+          updated_at: '2026-10-18T00:00:00Z',
+          group: { name: 'Nasi', allow_multiple: false, required: false },
+        },
+      ]),
+    );
+    const choices = await dataset('option_choices').load(STORE);
+    expect(choices.rows[0]?.slice(0, 11)).toEqual(['c1', STORE, 'g1', 'Nasi', false, false, 'Pakai nasi', 4000, false, true, 0]);
+
+    useDatabase(
+      onePage([{ product_id: 'p1', group_id: 'g1', store_id: STORE, position: 0, product: { name: 'Geprek' }, group: { name: 'Nasi' } }]),
+    );
+    const links = await dataset('product_options').load(STORE);
+    expect(links.columns).toEqual(['product_id', 'product_name', 'group_id', 'group_name', 'store_id', 'position']);
+    expect(links.rows).toEqual([['p1', 'Geprek', 'g1', 'Nasi', STORE, 0]]);
+  });
+
+  it('describeOptions leaves out the price of a free choice', () => {
+    expect(describeOptions([{ group: 'Level', name: 'Level 3', price: 0 }])).toBe('Level: Level 3');
+    expect(describeOptions([])).toBe('');
   });
 
   it('profiles: no email, password, or token column, requested or written', async () => {

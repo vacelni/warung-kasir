@@ -41,8 +41,8 @@ function serverDetail(overrides: Partial<TransactionDetailData> = {}): Transacti
     syncStatus: null,
     syncedAt: '2026-10-07T03:32:05+00:00',
     lines: [
-      { productName: 'Es Teh', unitPrice: 5000, quantity: 2, subtotal: 10000 },
-      { productName: 'Nasi Goreng', unitPrice: 15000, quantity: 2, subtotal: 30000 },
+      { productName: 'Es Teh', unitPrice: 5000, quantity: 2, subtotal: 10000, options: [], note: null },
+      { productName: 'Nasi Goreng', unitPrice: 15000, quantity: 2, subtotal: 30000, options: [], note: null },
     ],
     ...overrides,
   };
@@ -274,7 +274,7 @@ describe('TransactionDetail — missing, foreign, and failed', () => {
   it('wraps a very long product name instead of overflowing', async () => {
     const longName = 'Nasi Goreng Spesial Ekstra Pedas Dengan Telur Ceplok Ayam Suwir Dan Kerupuk Udang Besar';
     mocks.getTransaction.mockResolvedValue(
-      serverDetail({ lines: [{ productName: longName, unitPrice: 15000, quantity: 1, subtotal: 15000 }] }),
+      serverDetail({ lines: [{ productName: longName, unitPrice: 15000, quantity: 1, subtotal: 15000, options: [], note: null }] }),
     );
 
     renderDetail();

@@ -22,7 +22,13 @@ export async function saveCatalog(userId: string, storeId: string, catalog: Cata
     tx.store.put({
       user_id: userId,
       store_id: storeId,
-      products: catalog.products.map(({ id, name, price, categoryId }) => ({ id, name, price, categoryId })),
+      products: catalog.products.map(({ id, name, price, categoryId, optionGroups }) => ({
+        id,
+        name,
+        price,
+        categoryId,
+        optionGroups: optionGroups.map((group) => ({ ...group, choices: group.choices.map((choice) => ({ ...choice })) })),
+      })),
       categories: catalog.categories.map(({ id, name }) => ({ id, name })),
       store: catalog.store && {
         name: catalog.store.name,
@@ -42,7 +48,9 @@ export async function readCatalog(userId: string, storeId: string): Promise<Cach
   const store = snapshot.store
     ? { name: snapshot.store.name, address: snapshot.store.address, phone: snapshot.store.phone, receiptNote: snapshot.store.receipt_note }
     : null;
-  return { products: snapshot.products, categories: snapshot.categories, store, savedAt: snapshot.saved_at };
+  // A copy saved before product options existed has no groups: those products are added directly.
+  const products = snapshot.products.map((product) => ({ ...product, optionGroups: product.optionGroups ?? [] }));
+  return { products, categories: snapshot.categories, store, savedAt: snapshot.saved_at };
 }
 
 export async function clearCatalog(): Promise<void> {

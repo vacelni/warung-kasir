@@ -67,8 +67,8 @@ describe('syncOnce', () => {
       p_paid_amount: 50000,
       p_change_amount: 10000,
       p_items: [
-        { product_id: 'nasi', product_name: 'Nasi Goreng', unit_price: 15000, quantity: 2, subtotal: 30000 },
-        { product_id: 'teh', product_name: 'Es Teh', unit_price: 5000, quantity: 2, subtotal: 10000 },
+        { product_id: 'nasi', product_name: 'Nasi Goreng', unit_price: 15000, quantity: 2, subtotal: 30000, options: [], note: null },
+        { product_id: 'teh', product_name: 'Es Teh', unit_price: 5000, quantity: 2, subtotal: 10000, options: [], note: null },
       ],
     });
     // Identity and store come from the server session, never from the payload.
@@ -76,6 +76,26 @@ describe('syncOnce', () => {
     expect(args).not.toHaveProperty('p_store_id');
     expect(args).not.toHaveProperty('p_cashier_id');
     expect(await getOutboxEntry(ID)).toMatchObject({ sync_status: 'synced', attempts: 1, last_error: null });
+  });
+
+  it('sends the options and note of a line exactly as saved', async () => {
+    const options = [{ group: 'Level', name: 'Level 3', price: 0 }, { group: 'Nasi', name: 'Pakai nasi', price: 4000 }];
+    await enqueueTransaction(
+      testSnapshot({
+        items: [{ product_id: 'geprek', product_name: 'Geprek', unit_price: 16000, quantity: 1, subtotal: 16000, options, note: 'tanpa sambal' }],
+        total: 16000,
+        paid_amount: 20000,
+        change_amount: 4000,
+      }),
+    );
+    respond(CREATED);
+
+    await syncOnce(CASHIER);
+
+    const [[, args]] = mocks.rpc.mock.calls as [[string, { p_items: unknown[] }]];
+    expect(args.p_items).toEqual([
+      { product_id: 'geprek', product_name: 'Geprek', unit_price: 16000, quantity: 1, subtotal: 16000, options, note: 'tanpa sambal' },
+    ]);
   });
 
   it('treats exists as success (the server already has this sale)', async () => {

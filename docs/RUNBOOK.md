@@ -316,6 +316,26 @@ Open `/kasir.html` and confirm the redirect to `/kasir` carries the same headers
 
 ---
 
+### 7.8 Releasing product options (post-launch, 2026-10-18)
+
+The feature adds a migration (`20261018000100_product_options.sql`, additive: three tables, two
+columns with defaults, a new `create_transaction`) and new app code. **Order matters:**
+
+1. Owner exports CSV (Backup / Export) and the operator saves a dump (§8) *(approval)*.
+2. `npx supabase db push --dry-run`: it must list exactly that one migration. Then `db push`
+   *(approval)*. Old app versions keep working against the new database: the RPC accepts items
+   without options.
+3. Only then publish the new app (`git push` → Cloudflare Pages build) *(approval)*. A new app on
+   an old database cannot read the option tables, so the cashier screen would fall back to the
+   device copy.
+4. Check as the Owner: Lainnya → Pilihan Menu opens (empty); existing menu items, transactions and
+   categories unchanged; then build the first groups and attach them (Menu → Edit).
+5. Check as a Cashier: a menu item without options still adds in one tap; one with options opens
+   the sheet; a test sale appears in Riwayat with its choices.
+
+Rollback: the app can be rolled back at any time (§8). The database change is forward-only and
+harmless to the old app. Existing data is untouched; rehearsed locally on 2026-10-18 (TEST_PLAN G.21).
+
 ## 8. Rollback
 
 - **App (Cloudflare):** Deployments → previous production deployment → Rollback. Instant; the old

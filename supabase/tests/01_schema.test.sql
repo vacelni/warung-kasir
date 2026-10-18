@@ -46,8 +46,11 @@ insert into public.transaction_items (transaction_id, store_id, product_id, prod
 -- ---------------------------------------------------------------------------
 select tables_are(
   'public',
-  array['stores', 'profiles', 'categories', 'products', 'transactions', 'transaction_items'],
-  'public schema has exactly the six MVP tables'
+  array[
+    'stores', 'profiles', 'categories', 'products', 'transactions', 'transaction_items',
+    'option_groups', 'option_choices', 'product_option_groups'
+  ],
+  'public schema has exactly the six MVP tables plus the three product-option tables (D.12)'
 );
 
 select is_empty(

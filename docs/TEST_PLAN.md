@@ -373,3 +373,34 @@ Every E2E test fails on any securitypolicyviolation event or CSP console message
 Login before hydration (tests/e2e/auth.spec.ts, JavaScript disabled): submitting the form sends nothing and puts no credential in any URL.
 
 Logout offline with an expired access token (tests/e2e/sync.offline.spec.ts): the session is removed from the device within 5 s; the next visit reaches login; pending sales stay and sync only after their cashier logs in again.
+
+G.20 Receipt Printing Tests (Bluetooth printer)
+
+Unit (features/printer/escpos.test.ts): ESC @ first; store header, code, WIB date and time (including a sale whose UTC date differs from the WIB date), cashier, items, Total, Bayar, Kembalian, receipt note; header and note omitted when empty; every line at most 32 characters (58 mm) or 48 (80 mm); only printable ASCII and commands (accents removed, emoji and other characters become "?").
+
+Transport (features/printer/bluetooth.test.ts, fake Web Bluetooth): chooser opens with the printer services allowed; closing the chooser is a cancel and shows no error; remembered printer reused without the chooser; chunked writes arrive complete and in order (100 bytes with response, 20 bytes with a pause without); reconnect after sleep; no writable characteristic, connection failure, and write failure give distinct messages; browser without Web Bluetooth gets a clear message.
+
+Component (PrintReceiptButton.test.tsx, PrinterPanel.test.tsx): a second tap while printing prints once; failure shows the reason and a retry works; paper width and the paired printer persist on the device and "Lupakan printer" keeps the width; corrupted or blocked localStorage falls back to the defaults.
+
+Manual, on a real Android phone with the actual printer (cannot be proven by automated tests; record the model and result in PHASE_LOG):
+
+1. Lainnya → Hubungkan printer → choose the printer → Cetak tes prints on the right paper width.
+2. Complete a sale → CETAK STRUK on the success screen prints the receipt.
+3. Riwayat → open a transaction → CETAK STRUK reprints it.
+4. Printer off or out of range → clear message; the sale and its sync are unaffected.
+5. Offline sale → printing still works.
+6. Close and reopen the app → printing works again (the chooser may open once if Chrome forgot the printer).
+
+G.21 Product Options Tests (DATABASE D.12)
+
+Database (supabase/tests/07_product_options.test.sql, pgTAP): anon tidak membaca; Cashier membaca hanya store sendiri dan tidak dapat membuat, mengubah, atau menghapus grup/pilihan; Owner mengelola; harga tambahan negatif, nama ganda, dan rujukan lintas store (pilihan ke grup store lain, menu ke grup store lain) ditolak; create_transaction menerima options dan note, menyimpannya apa adanya, menerima item tanpa options (perangkat lama), dan menolak (WK001) options bukan array, nama kosong atau lebih dari 60 karakter, price hilang/negatif/pecahan, jumlah price >= unit_price, lebih dari 20 pilihan, note lebih dari 120 karakter atau bukan teks; pengiriman ulang tetap 'exists'; Owner pun tidak dapat mengubah options baris yang sudah terjual.
+
+Migrasi di atas data yang ada (latihan produksi): database pada skema sebelum fitur + seed, lalu migration baru; sidik jari data menu, kategori, profil, store, dan item transaksi identik sebelum dan sesudah; semua item lama berisi options = [] dan note null.
+
+Unit: lib/cart (lineId, harga = menu + pilihan, gabung/pisah baris, urutan pilihan tidak berpengaruh, catatan, jumlah, batas 200 baris), lib/options (default, toggle, wajib, habis, urutan, ringkasan), lib/checkout (snapshot options/note), sync (payload membawa options/note; entri lama dikirim sebagai [] dan null), katalog offline (grup tersimpan; snapshot lama dibaca tanpa grup), fetchCatalog (grup terpasang, pilihan habis disembunyikan, gagal baca pilihan = gagal seluruhnya), model/riwayat/api (baca options dan note, entri lama), escpos (pilihan dan catatan tercetak, pemisah koma, lebar baris), export CSV (kolom options dan note, dataset pilihan).
+
+Komponen: alur kasir (menu berpilihan membuka sheet, menu biasa tidak; TAMBAH nonaktif sampai wajib terisi dan menyebut yang kurang; harga bertambah; default; opsional dapat dikosongkan; gabung/pisah baris; catatan; jumlah; sheet baru setiap dibuka; tanpa request jaringan), layar Owner (grup, pilihan, habis, default, ubah, hapus dengan konfirmasi, validasi, error), form menu (grup terpasang sesuai urutan centang, tidak dipanggil jika tidak berubah, gagal sebagian dilaporkan).
+
+E2E (tests/e2e/options.mutation.spec.ts, serial): Owner membuat grup dan pilihan bertarif dan memasangnya pada menu baru; kasir menjual (harga, pilihan, catatan, sinkron), payload RPC dan baris database memuat pilihan; riwayat dan struk menampilkannya; setelah pilihan diubah, transaksi lama tetap; CSV memuatnya; tata letak 360px sheet, pesanan, dan sheet grup bebas overflow. tests/e2e/options.offline.spec.ts: menu berpilihan dijual offline dari salinan perangkat, bertahan di outbox, tampil di riwayat offline, sinkron satu kali dengan pilihan utuh.
+
+Manual: di HP Android sungguhan, jual Geprek dengan beberapa kombinasi, cetak struk, periksa keterbacaan pilihan pada struk.

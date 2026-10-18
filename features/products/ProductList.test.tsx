@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   updateProduct: vi.fn(),
   setProductActive: vi.fn(),
   listCategories: vi.fn(),
+  listOptionGroups: vi.fn(),
+  listProductLinks: vi.fn(),
+  setProductGroups: vi.fn(),
 }));
 
 vi.mock('./api', () => ({
@@ -22,6 +25,11 @@ vi.mock('./api', () => ({
   setProductActive: mocks.setProductActive,
 }));
 vi.mock('@/features/categories/api', () => ({ listCategories: mocks.listCategories }));
+vi.mock('@/features/options/api', () => ({
+  listOptionGroups: mocks.listOptionGroups,
+  listProductLinks: mocks.listProductLinks,
+  setProductGroups: mocks.setProductGroups,
+}));
 vi.mock('@/features/auth/AuthProvider', () => ({
   useProfile: (): Profile => ({ id: 'o', storeId: 'store-1', name: 'Bu Sari', role: 'owner' }),
 }));
@@ -48,7 +56,10 @@ beforeAll(() => {
 beforeEach(() => {
   mocks.listProducts.mockReset().mockResolvedValue(PRODUCTS);
   mocks.listCategories.mockReset().mockResolvedValue(CATEGORIES);
-  mocks.createProduct.mockReset().mockResolvedValue({ ok: true });
+  mocks.createProduct.mockReset().mockResolvedValue({ ok: true, id: 'new-product' });
+  mocks.listOptionGroups.mockReset().mockResolvedValue([]);
+  mocks.listProductLinks.mockReset().mockResolvedValue([]);
+  mocks.setProductGroups.mockReset().mockResolvedValue({ ok: true });
   mocks.updateProduct.mockReset().mockResolvedValue({ ok: true });
   mocks.setProductActive.mockReset().mockResolvedValue({ ok: true });
 });
@@ -303,5 +314,90 @@ describe('deactivating and reactivating', () => {
       fireEvent.click(dialog().getByRole('button', { name: 'Tutup' }));
     }
     expect(screen.queryByRole('button', { name: /hapus|delete/i })).toBeNull();
+  });
+});
+
+describe('option groups on a menu item (DATABASE D.12)', () => {
+  const group = (id: string, name: string, required = true) => ({ id, name, allowMultiple: false, required, choices: [] });
+  const GROUPS = [group('g-level', 'Level'), group('g-nasi', 'Nasi', false), group('g-bagian', 'Bagian ayam')];
+
+  it('attaches the ticked groups to a new menu item, in the order they were ticked', async () => {
+    mocks.listOptionGroups.mockResolvedValue(GROUPS);
+    await renderList();
+
+    fireEvent.click(screen.getByRole('button', { name: /TAMBAH MENU/ }));
+    fillForm({ name: 'Geprek', category: 'makanan', price: '12000' });
+    fireEvent.click(dialog().getByRole('checkbox', { name: /Bagian ayam/ }));
+    fireEvent.click(dialog().getByRole('checkbox', { name: /Level/ }));
+    submit();
+
+    await waitFor(() => expect(mocks.setProductGroups).toHaveBeenCalledWith('store-1', 'new-product', ['g-bagian', 'g-level']));
+  });
+
+  it('shows the order the cashier will see', async () => {
+    mocks.listOptionGroups.mockResolvedValue(GROUPS);
+    await renderList();
+
+    fireEvent.click(screen.getByRole('button', { name: /TAMBAH MENU/ }));
+    fireEvent.click(dialog().getByRole('checkbox', { name: /Nasi/ }));
+    fireEvent.click(dialog().getByRole('checkbox', { name: /Level/ }));
+
+    expect(dialog().getByText(/Urutan 1 · Opsional/)).toBeTruthy();
+    expect(dialog().getByText(/Urutan 2 · Wajib/)).toBeTruthy();
+  });
+
+  it('starts an existing item with the groups it already shows and leaves them alone when untouched', async () => {
+    mocks.listOptionGroups.mockResolvedValue(GROUPS);
+    mocks.listProductLinks.mockResolvedValue([
+      { productId: 'nasi', groupId: 'g-nasi', position: 1 },
+      { productId: 'nasi', groupId: 'g-level', position: 0 },
+    ]);
+    await renderList();
+
+    expect(screen.getAllByRole('listitem')[0]?.textContent).toContain('2 pilihan');
+    openActions('Nasi Goreng');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+    expect((dialog().getByRole('checkbox', { name: /Level/ }) as HTMLInputElement).checked).toBe(true);
+    expect((dialog().getByRole('checkbox', { name: /Nasi/ }) as HTMLInputElement).checked).toBe(true);
+    expect((dialog().getByRole('checkbox', { name: /Bagian ayam/ }) as HTMLInputElement).checked).toBe(false);
+
+    fillForm({ price: '16000' });
+    submit();
+
+    await waitFor(() => expect(mocks.updateProduct).toHaveBeenCalled());
+    expect(mocks.setProductGroups).not.toHaveBeenCalled();
+  });
+
+  it('removes a group from an existing item', async () => {
+    mocks.listOptionGroups.mockResolvedValue(GROUPS);
+    mocks.listProductLinks.mockResolvedValue([{ productId: 'nasi', groupId: 'g-level', position: 0 }]);
+    await renderList();
+
+    openActions('Nasi Goreng');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(dialog().getByRole('checkbox', { name: /Level/ }));
+    submit();
+
+    await waitFor(() => expect(mocks.setProductGroups).toHaveBeenCalledWith('store-1', 'nasi', []));
+  });
+
+  it('keeps the sheet open and says so when the item saved but its groups did not', async () => {
+    mocks.listOptionGroups.mockResolvedValue(GROUPS);
+    mocks.setProductGroups.mockResolvedValue({ ok: false, message: 'Tidak dapat terhubung ke server.' });
+    await renderList();
+
+    fireEvent.click(screen.getByRole('button', { name: /TAMBAH MENU/ }));
+    fillForm({ name: 'Geprek', category: 'makanan', price: '12000' });
+    fireEvent.click(dialog().getByRole('checkbox', { name: /Level/ }));
+    submit();
+
+    expect(await dialog().findByText(/Menu tersimpan, tetapi pilihan menu gagal disimpan/)).toBeTruthy();
+  });
+
+  it('points the owner to Pilihan Menu when no groups exist yet', async () => {
+    await renderList();
+    fireEvent.click(screen.getByRole('button', { name: /TAMBAH MENU/ }));
+    expect(dialog().getByText(/Belum ada pilihan/)).toBeTruthy();
   });
 });

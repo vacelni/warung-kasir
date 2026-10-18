@@ -212,6 +212,62 @@ transactions, transaction_items: REVOKE INSERT, UPDATE, DELETE dari anon dan aut
 products: tidak ada DELETE untuk client;
 profiles: client hanya UPDATE (name);
 helper function RLS berada di schema private yang tidak diekspos API, EXECUTE dicabut dari public/anon;
-default privileges (SEC-08): function dan sequence baru yang dibuat migration (role postgres) tidak mendapat hak apa pun untuk PUBLIC, anon, atau authenticated; setiap function yang boleh dipanggil client harus di-GRANT secara eksplisit. Daftar yang diizinkan untuk authenticated di schema public: create_transaction, sales_summary, sales_series, top_products (diuji pgTAP).
+default privileges (SEC-08): function dan sequence baru yang dibuat migration (role postgres) tidak mendapat hak apa pun untuk PUBLIC, anon, atau authenticated; setiap function yang boleh dipanggil client harus di-GRANT secara eksplisit. Daftar yang diizinkan untuk authenticated di schema public: create_transaction, sales_summary, sales_series, top_products (diuji pgTAP). Tabel pilihan menu (D.12) mengikuti aturan yang sama: grant tertulis eksplisit, hanya Owner menulis.
 
 Kebijakan RLS per tabel: SECURITY E.5.
+
+D.12 Product Options (pilihan menu)
+
+Ditambahkan setelah peluncuran (2026-10-18). Menu seperti "Geprek" dapat memiliki pilihan yang diketuk kasir sebelum menu masuk ke pesanan: pakai nasi atau tidak, level, bagian ayam, tambahan. Owner membuat grup pilihan yang dapat dipakai ulang dan memasangnya pada menu. Menu tanpa grup berperilaku persis seperti sebelumnya.
+
+Migration bersifat aditif: tiga tabel baru, dua kolom baru dengan default, satu constraint unik baru pada products, dan definisi baru create_transaction. Tidak ada baris yang ditulis ulang; semua transaksi lama otomatis berisi options = [] dan note = null (diuji dengan migrasi di atas data yang sudah ada).
+
+option_groups
+id uuid primary key
+store_id uuid not null references stores(id)
+name text not null            -- 1..60 karakter, unik per store
+allow_multiple boolean not null default false   -- false = pilih satu; true = boleh banyak (tambahan)
+required boolean not null default true          -- true = kasir wajib memilih
+created_at, updated_at timestamptz
+unique (store_id, name); unique (id, store_id)
+
+option_choices
+id uuid primary key
+store_id uuid not null
+group_id uuid not null
+name text not null            -- 1..60 karakter, unik per grup
+price_delta integer not null default 0          -- tambahan harga per unit, >= 0
+is_default boolean not null default false       -- terpilih otomatis saat sheet dibuka
+is_active boolean not null default true         -- false = habis, disembunyikan dari kasir
+position integer not null default 0
+created_at, updated_at timestamptz
+foreign key (group_id, store_id) references option_groups(id, store_id) on delete cascade
+
+product_option_groups
+product_id uuid, group_id uuid, store_id uuid, position integer, created_at
+primary key (product_id, group_id)
+foreign key (product_id, store_id) references products(id, store_id) on delete cascade
+foreign key (group_id, store_id) references option_groups(id, store_id) on delete cascade
+
+products mendapat unique (id, store_id) sebagai target foreign key komposit. Foreign key komposit membuat pilihan dan tautan tidak mungkin menunjuk data store lain, apa pun isi payload (foreign key tidak melewati RLS).
+
+Hak akses: seluruh anggota store membaca; hanya Owner menulis (insert/update/delete) melalui RLS dan column grant eksplisit; anon tidak punya akses. Menghapus grup atau pilihan diizinkan untuk Owner karena riwayat memakai snapshot, bukan referensi.
+
+transaction_items menambah:
+
+options jsonb not null default '[]'   -- [{"group": "Level", "name": "Level 3", "price": 0}, ...]
+note text                             -- catatan bebas kasir, paling banyak 120 karakter
+
+unit_price sudah mencakup jumlah price semua pilihan, sehingga subtotal = unit_price × quantity tidak berubah. options dan note adalah snapshot saat penjualan: mengganti nama, mengubah harga, menonaktifkan, atau menghapus pilihan tidak mengubah transaksi lama. Constraint: options adalah array dengan paling banyak 20 elemen; note null atau paling banyak 120 karakter.
+
+Validasi create_transaction (WK001 jika dilanggar), selain validasi D.9:
+
+options (jika ada dan bukan null) adalah array paling banyak 20 objek {group, name, price};
+group dan name string tidak kosong, paling banyak 60 karakter; price bilangan bulat 0..2147483647;
+jumlah price semua pilihan harus lebih kecil dari unit_price (harga menu sendiri minimal 1);
+note null atau teks paling banyak 120 karakter;
+item tanpa options/note (perangkat lama, menu biasa) disimpan sebagai [] dan null.
+
+Seperti unit_price (SECURITY E.12), pilihan dan harganya TIDAK dibandingkan dengan definisi pilihan saat ini, agar penjualan offline yang sah dari menu cache tetap dapat disinkronkan. Ini accepted risk yang sama.
+
+Laporan (sales_summary, sales_series, top_products) tidak berubah: menu terlaris dihitung per menu, tidak per kombinasi pilihan.

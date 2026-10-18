@@ -7,11 +7,13 @@ import type { Product } from './api';
 type ProductRowProps = {
   product: Product;
   categoryName: string;
+  /** How many option groups the cashier is asked about for this product. */
+  optionGroupCount?: number;
   onOpenActions: (product: Product) => void;
 };
 
 /** One product: name, price, category, status. The ⋮ button opens the action sheet (UI_SPEC A.17). */
-export function ProductRow({ product, categoryName, onOpenActions }: ProductRowProps) {
+export function ProductRow({ product, categoryName, optionGroupCount = 0, onOpenActions }: ProductRowProps) {
   return (
     <li className="flex min-h-20 items-center gap-2 py-2 pr-2 pl-4">
       <div className={cx('min-w-0 flex-1', !product.isActive && 'text-muted')}>
@@ -19,6 +21,7 @@ export function ProductRow({ product, categoryName, onOpenActions }: ProductRowP
         <p className="text-price font-bold">{formatRupiah(product.price)}</p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption">
           <span className="text-muted">{categoryName}</span>
+          {optionGroupCount > 0 && <span className="text-muted">{optionGroupCount} pilihan</span>}
           <Badge tone={product.isActive ? 'success' : 'neutral'}>{product.isActive ? 'Aktif' : 'Nonaktif'}</Badge>
         </p>
       </div>
