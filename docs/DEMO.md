@@ -41,4 +41,6 @@ never paused for inactivity.
    `supabase functions deploy admin-cashier`.
 6. Build on Linux with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (the demo
    project's publishable key) and `NEXT_PUBLIC_DEMO_MODE=1`, then
-   `wrangler pages deploy out --project-name warungkasir-demo`.
+   `wrangler pages deploy out --project-name warungkasir-demo`. Create the project once with
+   `wrangler pages project create warungkasir-demo --production-branch main --force`: without `--force`,
+   wrangler 4.155 tries to create a Worker instead, and a Worker would not apply `out/_headers` (the CSP).
