@@ -24,7 +24,6 @@ These engineering records track execution only and never override the specs.
 | `PHASE_LOG.md` | Phase 0–12 history with evidence labels; execution log of every sub-step with test results |
 | `SECURITY_TRACKER.md` | Phase 12 findings SEC-01..09, INFO-1..6: evidence, status, tests, residual risk |
 | `LAUNCH_READINESS.md` | Launch criteria with evidence; external checks still open |
-| `prompts/` | The task specification used for each remaining phase |
 
 ## Implemented (verified in the current code)
 
