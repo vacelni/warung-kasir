@@ -164,3 +164,10 @@ describe('before hydration (SEC-02)', () => {
     expect((screen.getByRole('button', { name: 'MASUK' }) as HTMLButtonElement).disabled).toBe(false);
   });
 });
+
+describe('production build (NEXT_PUBLIC_DEMO_MODE unset)', () => {
+  it('shows no demo accounts', () => {
+    render(<LoginForm />);
+    expect(screen.queryByRole('button', { name: /^Coba sebagai/ })).toBeNull();
+  });
+});

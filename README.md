@@ -9,13 +9,19 @@ A cashier takes orders on a cheap Android phone, gets paid, and prints a receipt
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3ECF8E?logo=supabase&logoColor=white)
 ![PWA](https://img.shields.io/badge/PWA-offline--first-5A0FC8)
 
+> **Try it:** [warungkasir-demo.pages.dev](https://warungkasir-demo.pages.dev). Tap *Coba sebagai Kasir* (cashier) or *Coba sebagai Pemilik* (owner). The demo runs on its own Supabase project with a fictional store and 30 days of sales, and it resets every hour ([how](docs/DEMO.md)).
+>
 > **In production since October 2026.** A real food stall runs on it: the owner manages the menu and reads reports, and cashiers ring up sales on Android phones. It was tested on a real device: install, offline sale, kill the app, reconnect, sync once.
 
-<!-- Screenshots: add docs/screenshots/{kasir,bayar,laporan,struk}.png and uncomment.
-| Cashier | Payment | Reports | Receipt |
-|---|---|---|---|
-| ![](docs/screenshots/kasir.png) | ![](docs/screenshots/bayar.png) | ![](docs/screenshots/laporan.png) | ![](docs/screenshots/struk.png) |
--->
+<p align="center">
+  <img src="docs/screenshots/kasir.png" width="200" alt="Cashier screen with a cart of five items">
+  <img src="docs/screenshots/opsi.png" width="200" alt="Product options: spice level and extra toppings">
+  <img src="docs/screenshots/bayar.png" width="200" alt="Payment screen with quick cash amounts and change">
+  <img src="docs/screenshots/laporan.png" width="200" alt="Owner report: revenue, transactions and hourly sales chart">
+</p>
+<p align="center">
+  <img src="docs/screenshots/laporan-desktop.png" width="820" alt="Owner report on desktop">
+</p>
 
 ---
 

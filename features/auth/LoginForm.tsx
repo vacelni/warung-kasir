@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { PasswordInput } from '@/components/ui/PasswordInput';
 import { AUTH_MESSAGES, signedOutNotice, validateCredentials, type CredentialErrors } from './account';
 import { hasStoredSession, signIn } from './api';
+import { DEMO_ACCOUNTS, DEMO_MODE } from './demo';
 
 /** `hydrated` never changes after hydration: nothing to subscribe to. */
 const noSubscription = () => () => {};
@@ -37,7 +38,7 @@ export function LoginForm() {
     };
   }, [router]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
 
@@ -46,6 +47,12 @@ export function LoginForm() {
     setFieldErrors(errors);
     setFormError(null);
     if (errors.email || errors.password) return;
+    void login(trimmedEmail, password);
+  }
+
+  async function login(loginEmail: string, loginPassword: string) {
+    if (pending) return;
+    setFormError(null);
 
     // Login always needs the server (UI_SPEC A.8).
     if (!navigator.onLine) {
@@ -55,7 +62,7 @@ export function LoginForm() {
 
     setPending(true);
     try {
-      const result = await signIn(trimmedEmail, password);
+      const result = await signIn(loginEmail, loginPassword);
       if (result.ok) {
         // Stay disabled while navigating so the form cannot be submitted twice.
         router.replace('/kasir');
@@ -102,6 +109,24 @@ export function LoginForm() {
       <Button type="submit" disabled={!hydrated || pending} className="w-full">
         {pending ? 'MEMPROSES…' : 'MASUK'}
       </Button>
+
+      {DEMO_MODE && (
+        <div className="flex flex-col gap-3 border-t border-border pt-5">
+          <p className="text-center text-caption text-muted">
+            Demo publik: data contoh, direset otomatis setiap jam.
+          </p>
+          {DEMO_ACCOUNTS.map((account) => (
+            <Button
+              key={account.email}
+              variant="secondary"
+              disabled={!hydrated || pending}
+              onClick={() => void login(account.email, account.password)}
+            >
+              {account.label}
+            </Button>
+          ))}
+        </div>
+      )}
     </form>
   );
 }
