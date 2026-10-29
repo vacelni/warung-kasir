@@ -13,7 +13,7 @@ env:
   API: https://fuouxthkrnxkserhodqc.supabase.co
   # Public by design: the publishable key ships in the demo's browser bundle, and the demo
   # account's password is printed on the demo login page.
-  KEY: sb_publishable_KP1bhzruDVZ2s__eRcMYhg_zxfuxqo8
+  KEY: sb_publishable_KP1bhzruDVZ2s__eRcMYhg_zxfuxqo8 # gitleaks:allow (publishable, public by design)
 
 jobs:
   ping:

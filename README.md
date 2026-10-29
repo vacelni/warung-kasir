@@ -3,7 +3,7 @@
 **Offline-first point-of-sale PWA for small Indonesian food stalls (*warung*).**
 A cashier takes orders on a cheap Android phone, gets paid, and prints a receipt over Bluetooth. This works even with the internet down, and every sale syncs exactly once when the connection returns.
 
-[![CI](https://github.com/vacelni/kasir/actions/workflows/ci.yml/badge.svg)](https://github.com/vacelni/kasir/actions/workflows/ci.yml)
+[![CI](https://github.com/vacelni/warung-kasir/actions/workflows/ci.yml/badge.svg)](https://github.com/vacelni/warung-kasir/actions/workflows/ci.yml)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20RLS-3ECF8E?logo=supabase&logoColor=white)
