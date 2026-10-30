@@ -26,7 +26,7 @@ A visitor can change a demo password (the Auth API allows it, SECURITY E.12), de
 create cashiers, or rename the whole menu. The worst case is a broken demo for at most five minutes (logins)
 or one hour (data).
 
-`.github/workflows/demo-keepalive.yml` reads one public row every three days so the free-tier project is
+`.github/workflows/keepalive.yml` (job `demo`) reads one public row every three days so the free-tier project is
 never paused for inactivity.
 
 ## Setting it up again

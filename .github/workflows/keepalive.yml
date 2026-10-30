@@ -1,0 +1,56 @@
+name: Keep-alive
+
+# Both Supabase projects are on the free plan, which pauses a project after a week without
+# activity: the public demo (docs/DEMO.md) between visitors, and the store's own project when the
+# shop is closed for a week (Lebaran). A paused store project cannot be opened until someone
+# restores it in the dashboard, so every three days each one gets a request that reaches Postgres.
+on:
+  schedule:
+    - cron: '17 3 */3 * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    env:
+      API: https://fuouxthkrnxkserhodqc.supabase.co
+      # Public by design: the publishable key ships in the demo's browser bundle, and the demo
+      # account's password is printed on the demo login page.
+      KEY: sb_publishable_KP1bhzruDVZ2s__eRcMYhg_zxfuxqo8 # gitleaks:allow (publishable, public by design)
+    steps:
+      - name: Sign in as the demo cashier and read the store
+        run: |
+          token=$(curl -fsS "$API/auth/v1/token?grant_type=password" \
+            -H "apikey: $KEY" -H "Content-Type: application/json" \
+            -d '{"email":"kasir@demo.warungkasir.test","password":"demo12345"}' | jq -r .access_token)
+          curl -fsS "$API/rest/v1/stores?select=name" -H "apikey: $KEY" -H "Authorization: Bearer $token"
+
+  production:
+    # Repository variables PROD_SUPABASE_URL and PROD_SUPABASE_PUBLISHABLE_KEY (the same publishable
+    # key the store's browser bundle carries). No account is used: anon has no table grants, so
+    # Postgres answers 42501 (HTTP 401), which still counts as activity and reads nothing.
+    if: vars.PROD_SUPABASE_URL != ''
+    runs-on: ubuntu-latest
+    env:
+      API: ${{ vars.PROD_SUPABASE_URL }}
+      KEY: ${{ vars.PROD_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - name: Ask Postgres for one row as anon
+        run: |
+          body=$(curl -sS -w '\n%{http_code}' "$API/rest/v1/stores?select=id&limit=1" -H "apikey: $KEY")
+          echo "$body"
+          # 42501 means the request reached Postgres; a paused project cannot answer it.
+          grep -q '"42501"' <<<"$body"
+
+  stay-enabled:
+    # GitHub turns off scheduled workflows in a public repository after 60 days without a commit.
+    # Re-enabling this workflow on every run resets that clock.
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - run: gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/keepalive.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
