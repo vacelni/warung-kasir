@@ -55,6 +55,7 @@ begin
   delete from public.option_groups where store_id = c_store;
   delete from public.products where store_id = c_store;
   delete from public.categories where store_id = c_store;
+  delete from public.ai_insight_usage where store_id = c_store;
 
   -- Cashiers a visitor created through the app: drop the profile and the auth user.
   create temporary table extra_users on commit drop as
