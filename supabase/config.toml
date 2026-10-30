@@ -401,6 +401,11 @@ ALLOWED_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:
 [functions.admin-cashier]
 verify_jwt = true
 
+# AI sales summary for the owner (docs/AI_INSIGHT.md). The platform JWT check is the first gate; the
+# report and quota functions it calls with the caller's token refuse anyone but the active owner.
+[functions.ai-insight]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 54327

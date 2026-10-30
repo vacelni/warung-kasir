@@ -43,6 +43,7 @@ Small warungs mostly track sales on paper or in their head. The usual POS apps n
 | **Receipts** | ESC/POS receipt printing to 58 mm / 80 mm Bluetooth thermal printers via Web Bluetooth |
 | **History** | Transaction history and receipt detail; sales still waiting to sync are shown next to synced ones |
 | **Reports** | Revenue, transaction count and average sale; sales chart; best-selling products by period (owner only) |
+| **AI summary** (opt-in) | A written summary of the period with suggestions, in Bahasa Indonesia, from Claude via an Edge Function with a daily cap in Postgres; falls back to a rule-based summary ([docs](docs/AI_INSIGHT.md)) |
 | **Menu admin** | Products, categories, option groups, availability toggles |
 | **Employees** | Owner creates, deactivates and resets cashier accounts (privileged Edge Function) |
 | **Backup** | CSV export of sales, items and menu |
@@ -86,14 +87,15 @@ flowchart LR
 - **The server validates every sale.** The RPC checks each line's arithmetic and the total, rejects products from another store, and rejects a sale ID that belongs to another cashier. It deliberately accepts the price the device had cached, because an offline sale may legitimately use yesterday's menu. This is a documented, accepted risk (`docs/SECURITY.md` E.12).
 - **Authorization lives in Postgres.** RLS policies isolate stores and roles.
 - **Cashier accounts go through an Edge Function.** Managing them needs the privileged Auth API. The function checks that the caller is the store's active owner inside its own code, because a valid JWT alone is not enough. If a later step fails, it rolls back the auth user it just created.
+- **AI without a secret key.** The `ai-insight` Edge Function reads the report as the owner (their own JWT, same RLS), sends only aggregates to Claude with a JSON schema, and reserves each call against a 20-a-day cap in Postgres first. No key, a refusal, or a malformed answer all fall back to a rule-based summary. See [`docs/AI_INSIGHT.md`](docs/AI_INSIGHT.md).
 - **Static export, no server.** Next.js `output: 'export'` on Cloudflare Pages. The build refuses to run if a secret or `service_role` key is in `NEXT_PUBLIC_*`, and it generates the CSP from the configured Supabase URL.
 
 ## Testing
 
 | Layer | Tooling | Count |
 |---|---|---|
-| Unit + component | Vitest, Testing Library, fake-indexeddb | **1,091 tests** in 76 files |
-| Database (schema, grants, RLS, RPC) | pgTAP via `supabase test db` | **365 assertions** in 7 suites |
+| Unit + component | Vitest, Testing Library, fake-indexeddb | **1,131 tests** in 81 files |
+| Database (schema, grants, RLS, RPC) | pgTAP via `supabase test db` | **417 assertions** in 8 suites |
 | Edge Function over real HTTP | Vitest against the local Supabase stack | 21 tests |
 | End-to-end | Playwright on 360/390/412 px phones, desktop Chromium, Microsoft Edge, the production `out/` build, and offline/service-worker scenarios | 726 test runs in the full matrix |
 

@@ -48,9 +48,9 @@ select tables_are(
   'public',
   array[
     'stores', 'profiles', 'categories', 'products', 'transactions', 'transaction_items',
-    'option_groups', 'option_choices', 'product_option_groups'
+    'option_groups', 'option_choices', 'product_option_groups', 'ai_insight_usage'
   ],
-  'public schema has exactly the six MVP tables plus the three product-option tables (D.12)'
+  'public schema has exactly the six MVP tables, the three product-option tables (D.12), and the AI insight quota table'
 );
 
 select is_empty(
@@ -417,7 +417,7 @@ select is(
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p
    where p.pronamespace = 'public'::regnamespace and has_function_privilege('authenticated', p.oid, 'execute')),
-  array['create_transaction', 'sales_series', 'sales_summary', 'top_products'],
+  array['consume_ai_insight', 'create_transaction', 'sales_series', 'sales_summary', 'top_products'],
   'authenticated can execute only the allow-listed functions in public'
 );
 

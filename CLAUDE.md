@@ -348,7 +348,7 @@ MVP does not include:
 * multi-store
 * multi-branch
 * WhatsApp integration
-* AI features
+* AI features (exception, added on explicit instruction: the opt-in owner sales summary in docs/AI_INSIGHT.md; nothing else)
 * native Android application
 * discounts
 * product images or store logo

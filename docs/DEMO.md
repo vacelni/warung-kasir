@@ -38,9 +38,10 @@ never paused for inactivity.
 4. Auth: `supabase config push --workdir <dir>` with `site_url` set to the demo origin and
    `[auth.email] max_frequency` back to `60s`; push **auth only**. Sign-ups stay off.
 5. `supabase secrets set ALLOWED_ORIGINS=https://warungkasir-demo.pages.dev`, then
-   `supabase functions deploy admin-cashier`.
+   `supabase functions deploy admin-cashier`. For the AI summary also deploy `ai-insight` (and set
+   `ANTHROPIC_API_KEY` if the demo should use Claude rather than the rule-based summary).
 6. Build on Linux with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (the demo
-   project's publishable key) and `NEXT_PUBLIC_DEMO_MODE=1`, then
+   project's publishable key), `NEXT_PUBLIC_DEMO_MODE=1` and `NEXT_PUBLIC_AI_INSIGHT=1`, then
    `wrangler pages deploy out --project-name warungkasir-demo`. Create the project once with
    `wrangler pages project create warungkasir-demo --production-branch main --force`: without `--force`,
    wrangler 4.155 tries to create a Worker instead, and a Worker would not apply `out/_headers` (the CSP).

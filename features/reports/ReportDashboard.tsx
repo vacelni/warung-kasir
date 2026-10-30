@@ -7,6 +7,8 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { AiInsightCard } from './AiInsightCard';
+import { AI_INSIGHT_ENABLED } from './insight';
 import { describeRange, hasNoSales } from './model';
 import { PeriodFilter } from './PeriodFilter';
 import { jakartaDayInput, periodPhrase, validateCustomRange, type ReportPeriod, type ReportSelection } from './range';
@@ -58,6 +60,8 @@ export function ReportDashboard() {
         {status === 'ready' && selection && range && (
           <>
             <SummaryGrid summary={report.summary} />
+
+            {AI_INSIGHT_ENABLED && !hasNoSales(report) && <AiInsightCard key={`${range.from}|${range.to}`} range={range} />}
 
             <section aria-labelledby="penjualan" className="flex flex-col gap-3">
               <h2 id="penjualan" className="text-section-title font-semibold text-foreground">
